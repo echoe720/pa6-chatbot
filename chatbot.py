@@ -283,16 +283,43 @@ class Chatbot:
                 result.append(movie_title)
             return result
 
-        # for movie in substring:
-        #     if movie in self.titles
+    # assumptions: foreign titles don't have years, only aka and a.k.a. <== get these checked
+    # edge case: 792%Yes, Madam (a.k.a. Police Assassins) (a.k.a. In the Line of Duty 2) (Huang gu shi jie) (1985)%Action
+    # edge 7603%Babies (Bébé(s)) (2010)%Documentary
+    # working 5190%Soldier of Orange (a.k.a. Survival Run) (Soldaat van Oranje) (1977)%Drama|Thriller|War
 
-        # allMovies = []
-        # for movie in self.titles:
-        #     movie = movie[0]
-        #     movieTitle = re.sub("(\([0-9]+\))", "", movie)
-        #     if movieTitle in preprocessed_input and movieTitle not in allMovies:
-        #         allMovies.append(movie)
-        # return allMovies
+    def find_foreign(self, title):
+        res = []
+        foreign_dict = {}
+        titleYear = re.findall("(\([0-9]+\))", title) 
+        title = re.sub( "(\([0-9]+\))", "", title) # filter out year from original title
+        titleWords = self.tokenize(title)
+        foreign_titles = []
+        foreign_titles_set = {}
+        # tokenize movie title, mamke sure every token in movie title input also in tokenized representation of movie
+        for i in range(len(self.titles)):
+            currTitle = self.titles[i][0]
+            # normalTitle = currTitle
+            currTitle = re.sub("(\([0-9]+\))", "", currTitle)
+            currTitle = re.findall("\(.*?\)", currTitle)
+            if currTitle != []:
+                for subTitle in currTitle:
+                    subTitle = re.sub("(a.k.a. )", "", subTitle)
+                    subTitle = re.sub("[()]", "", subTitle)
+                    foreign_dict[subTitle] = i #normalTitle.strip()
+                    foreign_titles.append(subTitle)
+                    foreign_titles_set[frozenset(self.tokenize(subTitle))] = i
+        # print(foreign_dict)
+        # print(foreign_titles)
+
+        if title in foreign_dict:
+            return [foreign_dict[title]]
+        else:
+            currWords = frozenset(self.tokenize(title))
+            if currWords in foreign_titles_set:
+                print("yes")
+                return [foreign_titles_set[currWords]]
+        return res
 
     def find_movies_by_title(self, title):
         """ Given a movie title, return a list of indices of matching movies.
@@ -312,6 +339,8 @@ class Chatbot:
         :param title: a string containing a movie title
         :returns: a list of indices of matching movies
         """
+        if self.creative:
+            return self.find_foreign(title)
         res = []
         titleYear = re.findall("(\([0-9]+\))", title) 
         title = re.sub( "(\([0-9]+\))", "", title) # filter out year from original title
@@ -336,23 +365,6 @@ class Chatbot:
                     if titleYear == [] or currYear[0] == titleYear[0]: # if there is a year specified in title make sure it matches
                         res.append(i) 
         return res
-
-    # def levenshteinDistance(self, s1, s2): # https://stackoverflow.com/questions/2460177/edit-distance-in-python
-    #     # print(s1)
-    #     # print(s2)
-    #     if len(s1) > len(s2):
-    #         s1, s2 = s2, s1
-
-    #     distances = range(len(s1) + 1)
-    #     for i2, c2 in enumerate(s2):
-    #         distances_ = [i2+1]
-    #         for i1, c1 in enumerate(s1):
-    #             if c1 == c2:
-    #                 distances_.append(distances[i1])
-    #             else:
-    #                 distances_.append(1 + min((distances[i1], distances[i1 + 1], distances_[-1])))
-    #         distances = distances_
-    #     return distances[-1]
 
     def extract_regex(self, s):
         if s == "loved":
@@ -719,13 +731,16 @@ class Chatbot:
         # for elem in l2:
         #     print(elem, self.extract_sentiment(elem))
         
-        id1 = "I liked The NoTeBoOk!"
-        id2 = "I thought 10 things i hate about you was great as well as Scream 2"
-        id3 = "I enjoyed \"Titanic (1997)\" and \"Scream 2 (1997)\""
-        id4 = "The Assassination of Richard Nixon"
-        l3 = list([id1, id2, id3, id4])
-        for elem in l3:
-            print(elem, self.extract_titles(elem))
+        # debug for extract titles creative
+        # id1 = "I liked The NoTeBoOk!"
+        # id2 = "I thought 10 things i hate about you was great as well as Scream 2"
+        # id3 = "I enjoyed \"Titanic (1997)\" and \"Scream 2 (1997)\""
+        # id4 = "The Assassination of Richard Nixon"
+        # l3 = list([id1, id2, id3, id4])
+        # for elem in l3:
+        #     print(elem, self.extract_titles(elem))
+        print(self.find_foreign("Se7en"))
+        print(self.find_foreign("La Guerre du feu"))
         return debug_info
 
     ############################################################################
