@@ -118,8 +118,64 @@ class Chatbot:
         # directly based on how modular it is, we highly recommended writing   #
         # code in a modular fashion to make it easier to improve and debug.    #
         ########################################################################
+        # self.creative = True
         if self.creative:
-            response = "I processed {} in creative mode!!".format(line)
+            movieTitle = self.extract_titles(self.preprocess(line))
+            sentiment = self.extract_sentiment_creative(line)
+
+            if len(movieTitle) == 0: # added this check for no movie, 
+                #what about the case where mentioned movie is not in the database??
+                response = "Please put quotation marks around the movie name so that I can tell what movie you are talking about."
+                return response
+            elif len(movieTitle) >= 2: 
+                response = "Please tell me about one movie at a time. What's one movie you have seen?"
+                return response
+            else:
+                movieIdx = self.find_movies_by_title(movieTitle[0]) # added [0] here
+                if len(movieIdx) == 0:
+                    return "Huh, I\'m not sure what movie you are talking about. What's a different movie that you have seen?"
+                elif len(movieIdx) >= 2:
+                    return "I found more than one movie called " + movieTitle[0] + ". Which one were you trying to tell me about?"
+                else:
+                    if self.user_ratings[movieIdx] == 0 and sentiment != 0:
+                        self.input_count += 1
+                    self.user_ratings[movieIdx] = sentiment
+
+                    if self.input_count == 5:
+                        self.user_ratings = self.binarize(self.user_ratings)
+                        self.ratings = self.binarize(self.ratings)
+                        k = len([rating for rating in self.user_ratings if rating == 0])
+                        recommendations = self.recommend(self.user_ratings, self.ratings, k, creative=False) #prior k: len(self.titles) - 1.  at most, k will be number of movies
+                        i = -1
+                        affirmative = ["yes", "sure", "ok", "yeah", "y", "affirmative", "i guess so", "fine", "always"]
+                        negative = ["no", "nah", "never", "negative", "n", "no thanks", "no, thanks", "nope"]
+                        answer = "yes" 
+                        while (answer in affirmative):
+                            i += 1
+                            answer = input('I think you\'ll enjoy watching\"' + self.titles[recommendations[i]][0] + '\"! Would you like another recommendations?\n').lower()
+                            if answer in negative:
+                                # response = "Have a nice day. Fullsend!"
+                                break
+                            elif answer not in affirmative and answer not in negative:
+                                currInput = input("Please input \"Yes\" or \"No\". ELON is disappointed in you. Let's try again. Would you like more recommendations?\n").lower()
+                                while (currInput != 'yes' and currInput != 'no'):
+                                    currInput = input("Please input \"Yes\" or \"No\". ELON is disappointed in you. Let's try again. Would you like more recommendations?\n")
+                                answer = currInput
+                                
+                            if i == len(self.titles):
+                                response = "We have no more recommendations -- Have a nice day. Fullsend!"
+                    else: #if self.input_count < 5
+                        if sentiment >= 1:
+                            return "Ok, you liked \"" + movieTitle[0] + "\"! Tell me what you thought of another movie."
+                        elif sentiment <= -1:
+                            return "Ok, you didn't like \"" + movieTitle[0] + "\"! Tell me what you thought of another movie."
+                        else: 
+                            self.input_count -= 1
+                            return "I'm confused, did you like \"" + movieTitle[0] + "\"? Please try to clarify if you liked the movie."
+                response = self.goodbye()
+            return response
+
+
         else:
             # In starter mode, your chatbot will help the user by giving movie recommendations. 
             # It will ask the user to say something about movies they have liked, and it will come up with a recommendation based on those data points. 
@@ -153,7 +209,7 @@ class Chatbot:
                         # print(self.user_ratings.shape) #(9125, )
                         # print(self.ratings.shape) #(9125, 671)
                         
-                         #get number of movies that the user haven't watched, and pass it in as k to recommend?
+                        #get number of movies that the user haven't watched, and pass it in as k to recommend?
                         k = len([rating for rating in self.user_ratings if rating == 0])
                         recommendations = self.recommend(self.user_ratings, self.ratings, k, creative=False) #prior k: len(self.titles) - 1.  at most, k will be number of movies
                         i = -1
@@ -183,11 +239,6 @@ class Chatbot:
                             self.input_count -= 1
                             return "I'm confused, did you like \"" + movieTitle[0] + "\"? Please try to clarify if you liked the movie."
             response = self.goodbye()
-            # response = "I processed {} in starter mode!!".format(line)
-
-        ########################################################################
-        #                          END OF YOUR CODE                            #
-        ########################################################################
         return response
 
     @staticmethod
@@ -378,6 +429,105 @@ class Chatbot:
             return -1
         return 0
 
+    def extract_sentiment_creative(self, preprocessed_input):
+        """Extract a sentiment rating from a line of pre-processed text.
+        You should return -1 if the sentiment of the text is negative, 0 if the
+        sentiment of the text is neutral (no sentiment detected), or +1 if the
+        sentiment of the text is positive.
+        
+        As an optional creative extension, return -2 if the sentiment of the
+        text is super negative and +2 if the sentiment of the text is super
+        positive.
+
+        Example:
+          sentiment = chatbot.extract_sentiment(chatbot.preprocess(
+                                                    'I liked "The Titanic"'))
+          print(sentiment) // prints 1
+
+        :param preprocessed_input: a user-supplied line of text that has been
+        pre-processed with preprocess()
+        :returns: a numerical value for the sentiment of the text
+        """
+        pos_count = 0.0
+        neg_count = 0.0
+        lmd = 1.0
+        neg_words = ["never", "not"]
+
+        negated_flag = False
+        distance_from_negation = 0
+        max_negation_distance = 5
+
+        # Cases to consider:
+        # Case 1. Extreme words behind pos/neg word(s). 
+        # Case 2. Words themselves are really strongly positive or negative 
+        extreme_flag = False
+        
+        preprocessed_input = re.sub('"([^"]*)"', "", preprocessed_input).lower()
+        extreme_words = re.findall("(:?[Rr]+[Ee]+[Aa]+[Ll]+[Ll]+[Yy]+)|(:?[Ee]+[Xx]+[Tt]+[Rr]+[Ee]+[Mm]+[Ee]+[Ll]+[Yy]+)|(:?[Vv]+[Ee]+[Rr]+[Yy]+)", preprocessed_input) #is there a way to do this non-manually?
+        preprocessed_input = self.tokenize(preprocessed_input)
+
+        extreme_negative_words = open('data/negative.txt', 'r').readlines() #not quite negative-- replace with new txt file.
+        extreme_positive_words = open('data/positive.txt', 'r').readlines() #not quite positive-- replace with new txt file
+
+        for item in preprocessed_input:
+            if item in extreme_words:
+                extreme_flag = True         
+            if distance_from_negation == max_negation_distance:
+                distance_from_negation = 0
+                negated_flag = False
+            if item not in self.sentiment:
+                item = self.extract_regex(item)
+            if item != None and item in neg_words:
+                negated_flag = not negated_flag
+                continue
+            if item not in self.sentiment:
+                continue
+            elif self.sentiment[item] != None and "pos" in self.sentiment[item]:
+                if negated_flag: #e.g. "not good"
+                    neg_count += 1.0
+                    if extreme_flag: #e.g. "not really awesome" and "really not awesome"
+                        extreme_flag = False
+
+                else:
+                    pos_count += 1.0
+                    isExtremePos = False
+                    if item in extreme_positive_words:
+                        isExtremePos = True
+
+                    if extreme_flag or isExtremePos: #e.g. "REALLY good or Amazing"
+                        pos_count += 1.0
+                        extreme_flag = False
+            elif self.sentiment[item] != None and "neg" in self.sentiment[item]:
+                if negated_flag: #e.g. not bad
+                    pos_count += 1.0
+                    if extreme_flag:  #e.g. not really bad
+                        extreme_flag = False
+                else:
+                    neg_count += 1.0
+                    isExtremeNeg = False
+                    if item in extreme_negative_words:
+                        isExtremeNeg = True
+
+                    if extreme_flag or isExtremeNeg: #e.g. verrry bad / HORRIBLE
+                        neg_count += 1.0
+                        extreme_flag = False
+            if negated_flag:
+                distance_from_negation += 1
+        if neg_count == 0.0 and pos_count == 0.0:
+            return 0
+        elif neg_count ==0:
+            return 1
+        if pos_count / neg_count >= lmd * 2:
+            return 2
+        elif pos_count / neg_count > lmd:
+            return 1
+        elif pos_count / neg_count <= lmd / 2:
+            return -2
+        elif pos_count / neg_count < lmd:
+            return -1
+        return 0
+
+
     def extract_sentiment_for_movies(self, preprocessed_input):
         """Creative Feature: Extracts the sentiments from a line of
         pre-processed text that may contain multiple movies. Note that the
@@ -462,7 +612,6 @@ class Chatbot:
                     new_candidates.append(indice)
                 elif clarification == candidate_year:
                     new_candidates.append(indice)
-                elif clarification == candidate_year[1:5]:
         return new_candidates
         
 
