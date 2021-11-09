@@ -221,17 +221,6 @@ class Chatbot:
 
         return text
 
-    def phrase_builder(self, my_words): # https://stackoverflow.com/questions/24964862/printing-all-possible-phrases-consecutive-combinations-of-words-in-a-given-str/24965141
-        phrases = []
-        for i, word in enumerate(my_words):
-            phrases.append(word)
-            for nextword in my_words[i+1:]:
-                phrases.append(phrases[-1] + " " + nextword)
-                # Remove the one-word phrase.
-                if word in phrases:
-                    phrases.remove(word)
-        return phrases
-
     def extract_titles(self, preprocessed_input):
         """Extract potential movie titles from a line of pre-processed text.
         Given an input text which has been pre-processed with preprocess(),
@@ -256,27 +245,42 @@ class Chatbot:
             return re.findall('"([^"]*)"', preprocessed_input)
         else:
             movie_titles = []
-            result = []
             for title in self.titles:
                 movie_titles.append(sorted(self.tokenize(title[0].lower()))) # now storing movie titles tokenized list, sorted so out of order matches
                 movie_titles.append(sorted(self.tokenize(re.sub("( \([0-9]+\))", "", title[0]).lower()))) # add both the title w/ year and without to list
-            allMovies = []
             
-            preprocessed_input = re.sub("(\")", "", preprocessed_input)
-            words = preprocessed_input.split()
-            substrings = self.phrase_builder(words)
-            for phrase in substrings:
-                # print(self.tokenize(phrase.lower()))
-                if sorted(self.tokenize(phrase.lower())) in movie_titles:
-                    result.append(phrase)
-            result_sorted = sorted(result)
-            for i in range(1, len(result_sorted)):
-                if i < len(result_sorted):
-                    i1 = result_sorted[i]
-                    i2 = result_sorted[i - 1]
-                    if re.sub( "(\([0-9]+\))", "", i1).strip() == re.sub( "(\([0-9]+\))", "", i2).strip():
-                        result.remove(result_sorted[i - 1]) # remove the one without the year, it passes scream/titanic
-                        result_sorted.pop(i)
+            split_words = re.sub(r'[^\w\s()]', '', preprocessed_input.lower()).split()
+
+            indices = {}
+            index_list = []
+            result = []
+            for start in range(len(split_words)):
+                for end in range(start, len(split_words)):
+                    substring = split_words[start:end+1]
+                    processed_string = ' '.join(substring)
+                    if sorted(self.tokenize(processed_string)) in movie_titles:
+                        if start in indices:
+                            if indices[start] < end:
+                                indices[start] = end
+                        else:
+                            indices[start] = end
+            for key in indices:
+                index_list.append((key, indices[key]))
+            index_list = sorted(index_list)
+
+            # eliminate overlapping indices (eliminate the shorter one)
+            for i in range(1, len(index_list)):
+                if index_list[i][0] <= index_list[i-1][1]: # there is overlap
+                    len1 = index_list[i][1] - index_list[i][0] + 1
+                    len2 = index_list[i-1][1] - index_list[i-1][0] + 1
+                    if len2 > len1:
+                        index_list.pop(i) # pop the smaller one
+                    else:
+                        index_list.pop(i-1)
+            
+            for index in index_list:
+                movie_title = ' '.join(split_words[index[0]:index[1] + 1])
+                result.append(movie_title)
             return result
 
         # for movie in substring:
@@ -716,8 +720,10 @@ class Chatbot:
         #     print(elem, self.extract_sentiment(elem))
         
         id1 = "I liked The NoTeBoOk!"
-        id2 = "I thought 10 things i hate about you was great"
-        l3 = list([id1, id2])
+        id2 = "I thought 10 things i hate about you was great as well as Scream 2"
+        id3 = "I enjoyed \"Titanic (1997)\" and \"Scream 2 (1997)\""
+        id4 = "The Assassination of Richard Nixon"
+        l3 = list([id1, id2, id3, id4])
         for elem in l3:
             print(elem, self.extract_titles(elem))
         return debug_info
