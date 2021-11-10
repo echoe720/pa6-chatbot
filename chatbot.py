@@ -128,6 +128,19 @@ class Chatbot:
 
             if len(movieTitle) == 0: # added this check for no movie, 
                 #what about the case where mentioned movie is not in the database??
+                # process for emotion
+                feeling_keywords = ["i am", "feeling"]
+                line = line.lower()
+                for key in feeling_keywords:
+                    if key in line:
+                        idx = line.index(key)
+                        line = line[idx:]
+                        line_sentiment = self.extract_sentiment(line)
+                        if line_sentiment == -1:
+                            return "Sorry you feel that way. ELON is very sorry."
+                        elif line_sentiment == 1:
+                            return "Glad you feel that way. ELON is very happy :)"
+
                 response = "Please use the correct movie title so that I can tell what movie you are talking about."
                 return response
             elif len(movieTitle) >= 2: 
