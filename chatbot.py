@@ -118,10 +118,12 @@ class Chatbot:
         # directly based on how modular it is, we highly recommended writing   #
         # code in a modular fashion to make it easier to improve and debug.    #
         ########################################################################
-        # self.creative = True
+        self.creative = True
         if self.creative:
             movieTitle = self.extract_titles(self.preprocess(line))
             sentiment = self.extract_sentiment_creative(line)
+            affirmative = ["yes", "sure", "ok", "yeah", "y", "affirmative", "i guess so", "fine", "always"]
+            negative = ["no", "nah", "never", "negative", "n", "no thanks", "no, thanks", "nope"]
 
             if len(movieTitle) == 0: # added this check for no movie, 
                 #what about the case where mentioned movie is not in the database??
@@ -132,8 +134,28 @@ class Chatbot:
                 return response
             else:
                 movieIdx = self.find_movies_by_title(movieTitle[0]) # added [0] here
-                if len(movieIdx) == 0:
-                    return "Huh, I\'m not sure what movie you are talking about. What's a different movie that you have seen?"
+                if len(movieIdx) == 0: #if no movie was initially found 
+                    i = 0
+                    possibleMovies = self.find_movies_closest_to_title(movieTitle[0])
+                    lenMovies = len(possibleMovies)
+                    if lenMovies == 0:
+                        return "Huh, I\'m not sure what movie you are talking about. What's a different movie that you have seen?"
+                    else:   
+                        answer = input('Did you mean "' + self.titles[possibleMovies[i]][0] + '"?').lower()
+                        noMatch = False
+                        while answer in negative or answer not in affirmative:
+                            i += 1
+                            if i == len(possibleMovies):
+                                noMatch = True
+                                break
+                            else:
+                                answer = input('Did you mean "' + self.titles[possibleMovies[i]][0] + '"?')
+                        if noMatch:
+                            return "Huh, I\'m not sure what movie you are talking about. What's a different movie that you have seen?"
+                        else:
+                            # self.input_count += 1
+                            return "Great, you liked \"" + self.titles[possibleMovies[i]][0] + "\"."
+                    
                 elif len(movieIdx) >= 2:
                     return "I found more than one movie called " + movieTitle[0] + ". Which one were you trying to tell me about?"
                 else:
@@ -147,8 +169,7 @@ class Chatbot:
                         k = len([rating for rating in self.user_ratings if rating == 0])
                         recommendations = self.recommend(self.user_ratings, self.ratings, k, creative=False) #prior k: len(self.titles) - 1.  at most, k will be number of movies
                         i = -1
-                        affirmative = ["yes", "sure", "ok", "yeah", "y", "affirmative", "i guess so", "fine", "always"]
-                        negative = ["no", "nah", "never", "negative", "n", "no thanks", "no, thanks", "nope"]
+                        
                         answer = "yes" 
                         while (answer in affirmative):
                             i += 1
@@ -463,12 +484,12 @@ class Chatbot:
         extreme_flag = False
         
         preprocessed_input = re.sub('"([^"]*)"', "", preprocessed_input).lower()
-        extreme_words = re.findall("(:?[Rr]+[Ee]+[Aa]+[Ll]+[Ll]+[Yy]+)|(:?[Ee]+[Xx]+[Tt]+[Rr]+[Ee]+[Mm]+[Ee]+[Ll]+[Yy]+)|(:?[Vv]+[Ee]+[Rr]+[Yy]+)", preprocessed_input) #is there a way to do this non-manually?
+        extreme_words = re.findall("(:?r+e+a+l+l+y+)|(:?e+x+t+r+e+m+e+l+y+)|(:?v+e+r+y+)", preprocessed_input) #it is okay to just find as many as possible manually
         preprocessed_input = self.tokenize(preprocessed_input)
 
-        extreme_negative_words = open('data/negative.txt', 'r').readlines() #not quite negative-- replace with new txt file.
+        extreme_negative_words = open('data/negative.txt', 'r').readlines() #not quite negative-- replace with new txt file. #just cite it!
         extreme_positive_words = open('data/positive.txt', 'r').readlines() #not quite positive-- replace with new txt file
-
+        
         for item in preprocessed_input:
             if item in extreme_words:
                 extreme_flag = True         
@@ -551,6 +572,28 @@ class Chatbot:
         """
         pass
 
+
+    def levenshtein(self, s, t): # https://python-course.eu/levenshtein_distance.php
+        rows = len(s)+1
+        cols = len(t)+1
+        dist = [[0 for x in range(cols)] for x in range(rows)]
+        for i in range(1, rows):
+            dist[i][0] = i
+        for i in range(1, cols):
+            dist[0][i] = i     
+        for col in range(1, cols):
+            for row in range(1, rows):
+                if s[row-1] == t[col-1]:
+                    cost = 0
+                else:
+                    cost = 2
+                dist[row][col] = min(dist[row-1][col] + 1,      # deletion
+                                    dist[row][col-1] + 1,      # insertion
+                                    dist[row-1][col-1] + cost) # substitution
+        # for r in range(rows):
+        #     print(dist[r])
+        return dist[row][col]
+
     def find_movies_closest_to_title(self, title, max_distance=3):
         """Creative Feature: Given a potentially misspelled movie title,
         return a list of the movies in the dataset whose titles have the least
@@ -574,8 +617,42 @@ class Chatbot:
         :returns: a list of movie indices with titles closest to the given title
         and within edit distance max_distance
         """
+        # movies = []
+        # distanceToMovies = []
+        # for i in range(len(self.titles)):
+        #     currTitle = self.titles[i][0]
+        #     dist = self.levenshtein(title, currTitle)
+        #     if currTitle == "Picture Perfect (1997)":
+        #         print(title)
+        #         print(currTitle)
+        #         print(dist)
+        #     if dist <= 3:  
+        #         distanceToMovies.append((dist, i))
+        # distanceToMovies.sort(key=lambda x: x[0]) #check whether sorted correctly
+        # movies = [pair[1] for pair in distanceToMovies] #not the actual titles, but the indices of movies
 
-        pass
+        # return movies
+        edit_dist = float('inf')
+        title_dist_dict = {}
+        title = title.lower()
+        for i in range(len(self.titles)):
+            iter_title = self.titles[i][0].lower()
+            iter_name = re.sub("(\([0-9]+\))", "", iter_title).strip() # compare against stripped movie with no year
+            curr_dist = self.levenshtein(iter_name, title)
+            if curr_dist <= edit_dist and curr_dist <= max_distance:
+                edit_dist = curr_dist
+                if curr_dist in title_dist_dict:
+                    title_dist_dict[curr_dist].append(i)
+                else:
+                    title_dist_dict[curr_dist] = [i]
+        if edit_dist == float('inf'):
+            return []
+        min_list = title_dist_dict[edit_dist] # dict contains old min edit distances as well, inefficient 
+        result = []
+        if min_list is not None:
+            for i in min_list:
+                result.append(i)
+        return result
 
     def disambiguate(self, clarification, candidates):
         """Creative Feature: Given a list of movies that the user could be
