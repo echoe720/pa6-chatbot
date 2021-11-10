@@ -140,9 +140,12 @@ class Chatbot:
                             return "Sorry you feel that way. ELON is very sorry."
                         elif line_sentiment == 1:
                             return "Glad you feel that way. ELON is very happy :)"
-
-                response = "Please use the correct movie title so that I can tell what movie you are talking about."
-                return response
+                if "\"" in line:
+                    return "I wasn't able to find that movie."
+                else:
+                    return "You don't seem to be talking about movies."
+                # response = "Please use the correct movie title so that I can tell what movie you are talking about."
+                # return response
             elif len(movieTitle) >= 2: 
                 response = "Please tell me about one movie at a time. What's one movie you have seen?"
                 return response
