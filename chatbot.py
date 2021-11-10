@@ -129,8 +129,28 @@ class Chatbot:
             if len(movieTitle) == 0: # added this check for no movie, 
                 #what about the case where mentioned movie is not in the database??
                 # process for emotion
-                feeling_keywords = ["i am", "feeling"]
+                question_keywords = ["can you", "what is"]
                 line = line.lower()
+                for key in question_keywords:
+                    if key in line:
+                        idx = line.index(key)
+                        line = line[idx + len(key):]
+                        # print(line)
+                        if "me" in line or "my" in line:
+                            line = re.sub("(me)", "you", line)
+                            line = re.sub("(my)", "your", line)
+                        elif "you" in line or "your" in line:
+                            line = re.sub("(your)", "my", line)
+                            line = re.sub("(you)", "me", line)
+                            
+                        if key == "can you":
+                            return "Sorry, I can't" + line + "."
+                        elif key == "what is":
+                            return "I don't know what" + line + " is."
+
+
+
+                feeling_keywords = ["i am", "feeling"]
                 for key in feeling_keywords:
                     if key in line:
                         idx = line.index(key)
