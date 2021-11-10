@@ -118,7 +118,7 @@ class Chatbot:
         # directly based on how modular it is, we highly recommended writing   #
         # code in a modular fashion to make it easier to improve and debug.    #
         ########################################################################
-        if not self.creative:
+        if self.creative:
             response = "I processed {} in creative mode!!".format(line)
         else:
             # In starter mode, your chatbot will help the user by giving movie recommendations. 
@@ -467,7 +467,21 @@ class Chatbot:
                         new_candidates.add(int(indice))
         return list(new_candidates)
     
-    def clarify_oldest_newest(self, clarification, candidates):
+    def sort_movies_by_date(self, input_list):
+        """sorts an input_list of movie indices by the date in the title of the movie.
+        The order is oldest to newest. Returns the sorted list
+        """
+        movie_list = []
+        for movie in input_list:
+            year = int(re.findall("\(([0-9]+)\)", self.titles[int(movie)][0])[0])
+            movie_list.append((year, movie))
+        movie_list.sort()
+        result = []
+        for year, movie in movie_list:
+            result.append(movie)
+        return result
+
+    def clarify_oldest_newest(self, clarification, candidates, full=False):
         """
         Looks through the clarification provided by the user for phrases like 
         "the newer movie", or "the original version" and returns list of indices
@@ -476,12 +490,14 @@ class Chatbot:
         :param clarification: user input intended to disambiguate between the
         given movies
         :param candidates: a list of movie indices
+        :param full: use numbers in the clarification
         :returns: a list of indices corresponding to the movies identified by
         the clarification
         """
         new_candidates = set()
         # dictionary of phrases to look for
         order_phrases = {"first": 0, "second": 1, "third": 2, "fourth": 3, "fifth": 4, "sixth": 5, "seventh": 6, "eight": 7, "ninth": 8, "tenth": 9, "1st": 0, "2nd": 1, "3rd": 2, "4th": 3, "5th": 4, "6th": 5, "7th": 6, "8th": 7, "9th": 8, "10th": 9}
+        full_phrases = {"1": 0, "2": 1, "3": 2, "4": 3, "5": 4, "6": 5, "7": 6, "8": 7, "8": 8, "10": 9}
         latest = ["latest", "recent", "new", "newest", "newer", "later"]
         earliest = ["earliest", "old", "oldest", "older", "earlier", "original"]
         words = self.tokenize(clarification.lower())
@@ -495,35 +511,27 @@ class Chatbot:
             if word in words:
                 newest = True
         # finds the oldest movie of the candidates
+        phrases = {}
+        if not full:
+            phrases = order_phrases
+        else:
+            phrases = full_phrases
         if oldest:
-            oldest_indice = 0
-            max_old = 2021
             offset = 0
-            for order_phrase in order_phrases:
+            for order_phrase in phrases:
                 if order_phrase in clarification:
-                    offset = order_phrases[order_phrase]
-            for indice in candidates:
-                candidate_year = int(re.findall("\(([0-9]+)\)", self.titles[int(indice)][0])[0])
-                if candidate_year < max_old:
-                    max_old = candidate_year
-                    oldest_indice = indice
-            return [oldest_indice]
+                    offset = phrases[order_phrase]
+            return [self.sort_movies_by_date(candidates)[offset]]
         # finds the newest movie of the candidates
         if newest:
-            newest_indice = 0
-            min_old = 0
             offset = 0
-            for order_phrase in order_phrases:
+            for order_phrase in phrases:
                 if order_phrase in clarification:
-                    offset = order_phrases[order_phrase]
-            for indice in candidates:
-                candidate_year = int(re.findall("\(([0-9]+)\)", self.titles[int(indice)][0])[0])
-                if candidate_year > min_old:
-                    min_old = candidate_year
-                    newest_indice = indice
-            return [newest_indice]
+                    offset = phrases[order_phrase]
+            movie_list = self.sort_movies_by_date(candidates)
+            return [movie_list[len(movie_list) - offset - 1]]
     
-    def clarify_by_order(self, clarification, candidates):
+    def clarify_by_order(self, clarification, candidates, full=False):
         """
         Looks through the clarification provided by the user for phrases like 
         "the second one, or "the last on the list" and returns list of indices
@@ -532,18 +540,25 @@ class Chatbot:
         :param clarification: user input intended to disambiguate between the
         given movies
         :param candidates: a list of movie indices
+        :param full: use numbers in the clarification
         :returns: a list of indices corresponding to the movies identified by
         the clarification
         """
         clarification = clarification.lower()
         order_phrases = {"first": 0, "second": 1, "third": 2, "fourth": 3, "fifth": 4, "sixth": 5, "seventh": 6, "eight": 7, "ninth": 8, "tenth": 9, "1st": 0, "2nd": 1, "3rd": 2, "4th": 3, "5th": 4, "6th": 5, "7th": 6, "8th": 7, "9th": 8, "10th": 9}
         reverse_phrases = ["from the end", "from the back", "to last", "to the last", "from last", "from the last", "to the end", "to the back"]
-        for order_phrase in order_phrases:
+        full_phrases = {"1": 0, "2": 1, "3": 2, "4": 3, "5": 4, "6": 5, "7": 6, "8": 7, "8": 8, "10": 9}
+        phrases = {}
+        if not full:
+            phrases = order_phrases
+        else:
+            phrases = full_phrases
+        for order_phrase in phrases:
             for reverse_phrase in reverse_phrases:
                 if f"{order_phrase} {reverse_phrase}" in clarification:
-                    return [candidates[len(candidates) - order_phrases[order_phrase] - 1]]
+                    return [candidates[len(candidates) - phrases[order_phrase] - 1]]
             if order_phrase in clarification:
-                return [candidates[order_phrases[order_phrase]]]
+                return [candidates[phrases[order_phrase]]]
         if "last" in clarification or "latter" in clarification:
             return [candidates[len(candidates) - 1]]
         return []
@@ -577,16 +592,17 @@ class Chatbot:
         if results:
             for x in results:
                 new_candidates.add(x)
+        # checks for a location on the list of candidates
+        results = self.clarify_by_order(clarification, candidates)
+        if results and not new_candidates:
+            for x in results:
+                new_candidates.add(x)
         # checks if substrings of two or more clairifcation words are in the title
         results = self.check_substring_clarification(clarification, candidates)
         if results:
             for x in results:
                 new_candidates.add(x)
-        # checks for a location on the list of candidates
-        results = self.clarify_by_order(clarification, candidates)
-        if results:
-            for x in results:
-                new_candidates.add(x)
+        
         # finds the movie or movie that matches the name or year in the clarification
         # extract info from the clarification
         titleYearParen = re.findall("(\([0-9]+\))", clarification)
@@ -611,9 +627,24 @@ class Chatbot:
                 new_candidates.add(int(indice))
             elif titleYear != [] and titleYear[0] in self.titles[int(indice)][0]:
                 new_candidates.add(int(indice))
-        new_candidates = list(new_candidates)        
+        new_candidates = list(new_candidates)
+        # if there are no movies that match, try treating numbers like "3" as positional indicators        
         if new_candidates == []:
-            return candidates
+            round_two_candidates = set()
+            # checks for phrases like "the original" or "the latest one"
+            results = self.clarify_oldest_newest(clarification, candidates, True)
+            if results:
+                for x in results:
+                    round_two_candidates.add(x)
+            # checks for a location on the list of candidates
+            results = self.clarify_by_order(clarification, candidates, True)
+            if results and not round_two_candidates:
+                for x in results:
+                    round_two_candidates.add(x)
+            if list(round_two_candidates) == []:
+                return candidates
+            else:
+                return list(round_two_candidates)
         return new_candidates
 
     ############################################################################
