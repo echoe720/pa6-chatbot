@@ -207,48 +207,54 @@ class Chatbot:
                 movieIdx = self.find_movies_by_title(movieTitle[0]) # added [0] here
                 
                 if len(movieIdx) >= 2:
-                    return "I found more than one movie called " + movieTitle[0] + ". Which one were you trying to tell me about?"
-                else:
-                    if self.user_ratings[movieIdx] == 0 and sentiment != 0:
-                        self.input_count += 1
-                    self.user_ratings[movieIdx] = sentiment
+                    unclear = True
+                    while unclear:
+                        unclear_movie_titles = []
+                        for id in movieIdx:
+                            unclear_movie_titles.append(self.titles[id][0])
+                        answer = input("I found more than one movie called " + movieTitle[0] + f". Which of these is the one you are telling me about: {str(unclear_movie_titles)}?\n> ")
+                        movieIdx=self.disambiguate(answer, movieIdx)
+                        if len(movieIdx) == 1: unclear = False
+                if self.user_ratings[movieIdx] == 0 and sentiment != 0:
+                    self.input_count += 1
+                self.user_ratings[movieIdx] = sentiment
 
-                    if self.input_count == 5:
-                        self.user_ratings = self.binarize(self.user_ratings)
-                        self.ratings = self.binarize(self.ratings)
-                        # print(len(self.titles)) #9125
-                        # print(self.user_ratings.shape) #(9125, )
-                        # print(self.ratings.shape) #(9125, 671)
-                        
-                         #get number of movies that the user haven't watched, and pass it in as k to recommend?
-                        k = len([rating for rating in self.user_ratings if rating == 0])
-                        recommendations = self.recommend(self.user_ratings, self.ratings, k, creative=False) #prior k: len(self.titles) - 1.  at most, k will be number of movies
-                        i = -1
-                        affirmative = ["yes", "sure", "ok", "yeah", "y", "affirmative", "i guess so", "fine", "always"]
-                        negative = ["no", "nah", "never", "negative", "n", "no thanks", "no, thanks", "nope"]
-                        answer = "yes" 
-                        while (answer in affirmative):
-                            i += 1
-                            answer = input('I think you\'ll enjoy watching\"' + self.titles[recommendations[i]][0] + '\"! Would you like another recommendations?\n').lower()
-                            if answer in negative:
-                                # response = "Have a nice day. Fullsend!"
-                                break
-                            elif answer not in affirmative and answer not in negative:
-                                currInput = input("Please input \"Yes\" or \"No\". ELON is disappointed in you. Let's try again. Would you like more recommendations?\n").lower()
-                                while (currInput != 'yes' and currInput != 'no'):
-                                    currInput = input("Please input \"Yes\" or \"No\". ELON is disappointed in you. Let's try again. Would you like more recommendations?\n")
-                                answer = currInput
-                                
-                            if i == len(self.titles):
-                                response = "We have no more recommendations -- Have a nice day. Fullsend!"
-                    else: #if self.input_count < 5
-                        if sentiment == 1:
-                            return "Ok, you liked \"" + movieTitle[0] + "\"! Tell me what you thought of another movie."
-                        elif sentiment == -1:
-                            return "Ok, you didn't like \"" + movieTitle[0] + "\"! Tell me what you thought of another movie."
-                        else: 
-                            self.input_count -= 1
-                            return "I'm confused, did you like \"" + movieTitle[0] + "\"? Please try to clarify if you liked the movie."
+                if self.input_count == 5:
+                    self.user_ratings = self.binarize(self.user_ratings)
+                    self.ratings = self.binarize(self.ratings)
+                    # print(len(self.titles)) #9125
+                    # print(self.user_ratings.shape) #(9125, )
+                    # print(self.ratings.shape) #(9125, 671)
+                    
+                        #get number of movies that the user haven't watched, and pass it in as k to recommend?
+                    k = len([rating for rating in self.user_ratings if rating == 0])
+                    recommendations = self.recommend(self.user_ratings, self.ratings, k, creative=False) #prior k: len(self.titles) - 1.  at most, k will be number of movies
+                    i = -1
+                    affirmative = ["yes", "sure", "ok", "yeah", "y", "affirmative", "i guess so", "fine", "always"]
+                    negative = ["no", "nah", "never", "negative", "n", "no thanks", "no, thanks", "nope"]
+                    answer = "yes" 
+                    while (answer in affirmative):
+                        i += 1
+                        answer = input('I think you\'ll enjoy watching\"' + self.titles[recommendations[i]][0] + '\"! Would you like another recommendations?\n').lower()
+                        if answer in negative:
+                            # response = "Have a nice day. Fullsend!"
+                            break
+                        elif answer not in affirmative and answer not in negative:
+                            currInput = input("Please input \"Yes\" or \"No\". ELON is disappointed in you. Let's try again. Would you like more recommendations?\n").lower()
+                            while (currInput != 'yes' and currInput != 'no'):
+                                currInput = input("Please input \"Yes\" or \"No\". ELON is disappointed in you. Let's try again. Would you like more recommendations?\n")
+                            answer = currInput
+                            
+                        if i == len(self.titles):
+                            response = "We have no more recommendations -- Have a nice day. Fullsend!"
+                else: #if self.input_count < 5
+                    if sentiment == 1:
+                        return "Ok, you liked \"" + movieTitle[0] + "\"! Tell me what you thought of another movie."
+                    elif sentiment == -1:
+                        return "Ok, you didn't like \"" + movieTitle[0] + "\"! Tell me what you thought of another movie."
+                    else: 
+                        self.input_count -= 1
+                        return "I'm confused, did you like \"" + movieTitle[0] + "\"? Please try to clarify if you liked the movie."
             response = self.goodbye()
         else:
             # In starter mode, your chatbot will help the user by giving movie recommendations. 
@@ -483,13 +489,6 @@ class Chatbot:
             titleYear.append(re.findall("(\([0-9]+\))", title))
             title = re.sub( "(\([0-9]+\))", "", title) # filter out year from original title
             titleWords = self.tokenize(title)
-            # TODO: figure out why this no longer passes disambiguation part 1
-            for i in range(len(self.titles)):
-                currTitle = re.sub("(\([0-9]+\))", "",self.titles[i][0])
-                if len(titleWords) == 1 and titleWords[0] in self.tokenize(currTitle):
-                    res.append(i)
-                elif len(titleWords) != 1 and title in currTitle:
-                    res.append(i)
 
             if titleWords[0] in ("the", "a", "an", "le", "el", "la"):
                 the = titleWords[0]
@@ -500,8 +499,9 @@ class Chatbot:
 
             for i in range(len(movie_titles)):
                 currTitle = movie_titles[i]
-               
-                if title in currTitle:
+                if len(titleWords) == 1 and list(titleWords)[0] in self.tokenize(currTitle):
+                    res.append(i)
+                elif len(titleWords) != 1 and title in currTitle:
                     res.append(i)
                 else:
                     currYear = re.findall("(\([0-9]+\))", currTitle)
