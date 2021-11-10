@@ -281,17 +281,6 @@ class Chatbot:
 
         return text
 
-    def phrase_builder(self, my_words): # https://stackoverflow.com/questions/24964862/printing-all-possible-phrases-consecutive-combinations-of-words-in-a-given-str/24965141
-        phrases = []
-        for i, word in enumerate(my_words):
-            phrases.append(word)
-            for nextword in my_words[i+1:]:
-                phrases.append(phrases[-1] + " " + nextword)
-                # Remove the one-word phrase.
-                if word in phrases:
-                    phrases.remove(word)
-        return phrases
-
     def extract_titles(self, preprocessed_input):
         """Extract potential movie titles from a line of pre-processed text.
         Given an input text which has been pre-processed with preprocess(),
@@ -316,40 +305,81 @@ class Chatbot:
             return re.findall('"([^"]*)"', preprocessed_input)
         else:
             movie_titles = []
-            result = []
             for title in self.titles:
                 movie_titles.append(sorted(self.tokenize(title[0].lower()))) # now storing movie titles tokenized list, sorted so out of order matches
                 movie_titles.append(sorted(self.tokenize(re.sub("( \([0-9]+\))", "", title[0]).lower()))) # add both the title w/ year and without to list
-            allMovies = []
             
-            preprocessed_input = re.sub("(\")", "", preprocessed_input)
-            words = preprocessed_input.split()
-            substrings = self.phrase_builder(words)
-            for phrase in substrings:
-                # print(self.tokenize(phrase.lower()))
-                if sorted(self.tokenize(phrase.lower())) in movie_titles:
-                    stripped_phrase = re.sub(r'[^\w\s()]', '', phrase)
-                    result.append(stripped_phrase)
-            result_sorted = sorted(result)
-            for i in range(1, len(result_sorted)):
-                if i < len(result_sorted):
-                    i1 = result_sorted[i]
-                    i2 = result_sorted[i - 1]
-                    if re.sub( "(\([0-9]+\))", "", i1).strip() == re.sub( "(\([0-9]+\))", "", i2).strip():
-                        result.remove(result_sorted[i - 1]) # remove the one without the year, it passes scream/titanic
-                        result_sorted.pop(i)
+            split_words = re.sub(r'[^\w\s()]', '', preprocessed_input.lower()).split()
+
+            indices = {}
+            index_list = []
+            result = []
+            for start in range(len(split_words)):
+                for end in range(start, len(split_words)):
+                    substring = split_words[start:end+1]
+                    processed_string = ' '.join(substring)
+                    if sorted(self.tokenize(processed_string)) in movie_titles:
+                        if start in indices:
+                            if indices[start] < end:
+                                indices[start] = end
+                        else:
+                            indices[start] = end
+            for key in indices:
+                index_list.append((key, indices[key]))
+            index_list = sorted(index_list)
+
+            # eliminate overlapping indices (eliminate the shorter one)
+            for i in range(1, len(index_list)):
+                if index_list[i][0] <= index_list[i-1][1]: # there is overlap
+                    len1 = index_list[i][1] - index_list[i][0] + 1
+                    len2 = index_list[i-1][1] - index_list[i-1][0] + 1
+                    if len2 > len1:
+                        index_list.pop(i) # pop the smaller one
+                    else:
+                        index_list.pop(i-1)
+            
+            for index in index_list:
+                movie_title = ' '.join(split_words[index[0]:index[1] + 1])
+                result.append(movie_title)
             return result
 
-        # for movie in substring:
-        #     if movie in self.titles
+    # assumptions: foreign titles don't have years, only aka and a.k.a. <== get these checked
+    # edge case: 792%Yes, Madam (a.k.a. Police Assassins) (a.k.a. In the Line of Duty 2) (Huang gu shi jie) (1985)%Action
+    # edge 7603%Babies (Bébé(s)) (2010)%Documentary
+    # working 5190%Soldier of Orange (a.k.a. Survival Run) (Soldaat van Oranje) (1977)%Drama|Thriller|War
 
-        # allMovies = []
-        # for movie in self.titles:
-        #     movie = movie[0]
-        #     movieTitle = re.sub("(\([0-9]+\))", "", movie)
-        #     if movieTitle in preprocessed_input and movieTitle not in allMovies:
-        #         allMovies.append(movie)
-        # return allMovies
+    def find_foreign(self, title):
+        res = []
+        foreign_dict = {}
+        titleYear = re.findall("(\([0-9]+\))", title) 
+        title = re.sub( "(\([0-9]+\))", "", title) # filter out year from original title
+        titleWords = self.tokenize(title)
+        foreign_titles = []
+        foreign_titles_set = {}
+        # tokenize movie title, mamke sure every token in movie title input also in tokenized representation of movie
+        for i in range(len(self.titles)):
+            currTitle = self.titles[i][0]
+            # normalTitle = currTitle
+            currTitle = re.sub("(\([0-9]+\))", "", currTitle)
+            currTitle = re.findall("\(.*?\)", currTitle)
+            if currTitle != []:
+                for subTitle in currTitle:
+                    subTitle = re.sub("(a.k.a. )", "", subTitle)
+                    subTitle = re.sub("[()]", "", subTitle)
+                    foreign_dict[subTitle] = i #normalTitle.strip()
+                    foreign_titles.append(subTitle)
+                    foreign_titles_set[frozenset(self.tokenize(subTitle))] = i
+        # print(foreign_dict)
+        # print(foreign_titles)
+
+        if title in foreign_dict:
+            return [foreign_dict[title]]
+        else:
+            currWords = frozenset(self.tokenize(title))
+            if currWords in foreign_titles_set:
+                print("yes")
+                return [foreign_titles_set[currWords]]
+        return res
 
     def find_movies_by_title(self, title):
         """ Given a movie title, return a list of indices of matching movies.
@@ -408,6 +438,10 @@ class Chatbot:
                     if currWords == titleWords: # the vectorized words are subsets of each other
                         if titleYear == [] or currYear[0] == titleYear[0]: # if there is a year specified in title make sure it matches
                             res.append(i) 
+            # print(len(res))
+            # if len(res) == 0:
+            #     return self.find_foreign(title)
+
             return res
 
 
@@ -436,23 +470,6 @@ class Chatbot:
                         if titleYear == [] or currYear[0] == titleYear[0]: # if there is a year specified in title make sure it matches
                             res.append(i) 
             return res
-
-    # def levenshteinDistance(self, s1, s2): # https://stackoverflow.com/questions/2460177/edit-distance-in-python
-    #     # print(s1)
-    #     # print(s2)
-    #     if len(s1) > len(s2):
-    #         s1, s2 = s2, s1
-
-    #     distances = range(len(s1) + 1)
-    #     for i2, c2 in enumerate(s2):
-    #         distances_ = [i2+1]
-    #         for i1, c1 in enumerate(s1):
-    #             if c1 == c2:
-    #                 distances_.append(distances[i1])
-    #             else:
-    #                 distances_.append(1 + min((distances[i1], distances[i1 + 1], distances_[-1])))
-    #         distances = distances_
-    #     return distances[-1]
 
     def extract_regex(self, s):
         if s == "loved":
@@ -552,6 +569,26 @@ class Chatbot:
         """
         pass
 
+    def levenshtein(self, s, t): # https://python-course.eu/levenshtein_distance.php
+        rows = len(s)+1
+        cols = len(t)+1
+        dist = [[0 for x in range(cols)] for x in range(rows)]
+        for i in range(1, rows):
+            dist[i][0] = i
+        for i in range(1, cols):
+            dist[0][i] = i     
+        for col in range(1, cols):
+            for row in range(1, rows):
+                if s[row-1] == t[col-1]:
+                    cost = 0
+                else:
+                    cost = 2
+                dist[row][col] = min(dist[row-1][col] + 1,      # deletion
+                                    dist[row][col-1] + 1,      # insertion
+                                    dist[row-1][col-1] + cost) # substitution
+        # for r in range(rows):
+        #     print(dist[r])
+        return dist[row][col]
     def find_movies_closest_to_title(self, title, max_distance=3):
         """Creative Feature: Given a potentially misspelled movie title,
         return a list of the movies in the dataset whose titles have the least
@@ -575,8 +612,27 @@ class Chatbot:
         :returns: a list of movie indices with titles closest to the given title
         and within edit distance max_distance
         """
-
-        pass
+        edit_dist = float('inf')
+        title_dist_dict = {}
+        title = title.lower()
+        for i in range(len(self.titles)):
+            iter_title = self.titles[i][0].lower()
+            iter_name = re.sub("(\([0-9]+\))", "", iter_title).strip() # compare against stripped movie with no year
+            curr_dist = self.levenshtein(iter_name, title)
+            if curr_dist <= edit_dist and curr_dist <= max_distance:
+                edit_dist = curr_dist
+                if curr_dist in title_dist_dict:
+                    title_dist_dict[curr_dist].append(i)
+                else:
+                    title_dist_dict[curr_dist] = [i]
+        if edit_dist == float('inf'):
+            return []
+        min_list = title_dist_dict[edit_dist] # dict contains old min edit distances as well, inefficient 
+        result = []
+        if min_list is not None:
+            for i in min_list:
+                result.append(i)
+        return result
 
     def disambiguate(self, clarification, candidates):
         """Creative Feature: Given a list of movies that the user could be
@@ -783,10 +839,24 @@ class Chatbot:
         id1 = "I liked The NoTeBoOk (2004)!"
         id2 = "I thought 10 things i hate about you was great"
         id3 = "I liked The Notebook and I liked 10 things i hate about you was great"
-        l3 = list([id1, id2])
+        id4 = "Se7en"
+        id5 = "La Guerre du feu"
+        id6 = "10 things i HATE about you"
+        id7 = "Titanic"
+        id8 = "Scream"
+        l3 = list([id1, id2, id3, id4, id5, id6, id7, id8])
         for elem in l3:
-            for title in self.extract_titles(elem):
-                print(elem, self.find_movies_by_title(title))
+            # print(elem)
+            extracted_titles = self.extract_titles(elem)
+            # print(extracted_titles)
+            if len(extracted_titles) == 0:
+                print(elem, self.find_movies_by_title(elem))
+            else:
+                ans = []
+                for title in self.extract_titles(elem):
+                    print(elem, self.find_movies_by_title(title))
+            
+        # print(self.find_foreign(id5))
         return debug_info
 
     ############################################################################
