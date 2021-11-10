@@ -148,18 +148,16 @@ class Chatbot:
                         elif key == "what is":
                             return "I don't know what" + line + " is."
 
-
-
                 feeling_keywords = ["i am", "feeling"]
                 for key in feeling_keywords:
                     if key in line:
                         idx = line.index(key)
-                        line = line[idx:]
+                        line = line[idx + len(key):]
                         line_sentiment = self.extract_sentiment(line)
                         if line_sentiment == -1:
-                            return "Sorry you feel that way. ELON is very sorry."
+                            return "Sorry you feel" + line + ". ELON is very sorry."
                         elif line_sentiment == 1:
-                            return "Glad you feel that way. ELON is very happy :)"
+                            return "Glad you feel" + line + ". ELON is very happy :)"
                 if "\"" in line:
                     return "I wasn't able to find that movie."
                 else:
