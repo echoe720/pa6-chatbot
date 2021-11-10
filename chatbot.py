@@ -132,6 +132,40 @@ class Chatbot:
             if len(movieTitle) == 0: # added this check for no movie, 
                 #what about the case where mentioned movie is not in the database??
                 # process for emotion
+
+                #what is your name
+
+
+                # if len(movieIdx) == 0: #if no movie was initially found 
+
+                i = 0
+                if "\"" in line:
+                    x = ""
+                    possibleMovies = self.find_movies_closest_to_title(x) # the input should be the "incorrect" movie title
+                    lenMovies = len(possibleMovies)
+                    if lenMovies == 0:
+                        return "Huh, I\'m not sure what movie you are talking about. What's a different movie that you have seen?"
+                    else:   
+                        answer = input('Did you mean "' + self.titles[possibleMovies[i]][0] + '"?').lower()
+                        noMatch = False
+                        while answer in negative or answer not in affirmative:
+                            i += 1
+                            if i == len(possibleMovies):
+                                noMatch = True
+                                break
+                            else:
+                                answer = input('Did you mean "' + self.titles[possibleMovies[i]][0] + '"?')
+                        if noMatch:
+                            return "Huh, I\'m not sure what movie you are talking about. What's a different movie that you have seen?"
+                        else:
+                            # self.input_count += 1
+                            return "Great, you liked \"" + self.titles[possibleMovies[i]][0] + "\"."
+
+
+
+
+
+
                 question_keywords = ["can you", "what is"]
                 line = line.lower()
                 for key in question_keywords:
@@ -172,28 +206,8 @@ class Chatbot:
                 return response
             else:
                 movieIdx = self.find_movies_by_title(movieTitle[0]) # added [0] here
-                if len(movieIdx) == 0: #if no movie was initially found 
-                    i = 0
-                    possibleMovies = self.find_movies_closest_to_title(movieTitle[0])
-                    lenMovies = len(possibleMovies)
-                    if lenMovies == 0:
-                        return "Huh, I\'m not sure what movie you are talking about. What's a different movie that you have seen?"
-                    else:   
-                        answer = input('Did you mean "' + self.titles[possibleMovies[i]][0] + '"?').lower()
-                        noMatch = False
-                        while answer in negative or answer not in affirmative:
-                            i += 1
-                            if i == len(possibleMovies):
-                                noMatch = True
-                                break
-                            else:
-                                answer = input('Did you mean "' + self.titles[possibleMovies[i]][0] + '"?')
-                        if noMatch:
-                            return "Huh, I\'m not sure what movie you are talking about. What's a different movie that you have seen?"
-                        else:
-                            # self.input_count += 1
-                            return "Great, you liked \"" + self.titles[possibleMovies[i]][0] + "\"."
-                elif len(movieIdx) >= 2:
+                
+                if len(movieIdx) >= 2:
                     return "I found more than one movie called " + movieTitle[0] + ". Which one were you trying to tell me about?"
                 else:
                     if self.user_ratings[movieIdx] == 0 and sentiment != 0:
@@ -737,7 +751,7 @@ class Chatbot:
                                     dist[row-1][col-1] + cost) # substitution
         # for r in range(rows):
         #     print(dist[r])
-        return dist[row][col]
+        return dist[rows-1][cols-1]
 
     def find_movies_closest_to_title(self, title, max_distance=3):
         """Creative Feature: Given a potentially misspelled movie title,
