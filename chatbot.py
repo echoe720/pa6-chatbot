@@ -54,7 +54,6 @@ class Chatbot:
         ########################################################################
         if self.creative:
             greeting_message = "Hello, I'm ELON! I'm going to help you find a movie to watch. Tell me about a movie you watched and whether you liked the movie."
-
         else:
             greeting_message = "Hello, I'm ELON! I'm going to help you find a movie to watch. Tell me about a movie you watched and whether you liked the movie. Please put the name of the movie in quotation marks."
 
@@ -273,6 +272,15 @@ class Chatbot:
                 elif len(movieIdx) >= 2:
                     return "I found more than one movie called " + movieTitle[0] + ". Which one were you trying to tell me about?"
                 else:
+                    if self.creative and len(movieIdx) >= 2:
+                        unclear = True
+                        while unclear:
+                            unclear_movie_titles = []
+                            for id in movieIdx:
+                                unclear_movie_titles.append(self.titles[id][0])
+                            answer = input("I found more than one movie called " + movieTitle[0] + f". Which of these is the one you are telling me about: {str(unclear_movie_titles)}?\n> ")
+                            movieIdx=self.disambiguate(answer, movieIdx)
+                            if len(movieIdx) == 1: unclear = False
                     if self.user_ratings[movieIdx] == 0 and sentiment != 0:
                         self.input_count += 1
                     self.user_ratings[movieIdx] = sentiment
@@ -307,9 +315,9 @@ class Chatbot:
                                 response = "We have no more recommendations -- Have a nice day. Fullsend!"
                     else: #if self.input_count < 5
                         if sentiment == 1:
-                            return "Ok, you liked \"" + movieTitle[0] + "\"! Tell me what you thought of another movie."
+                            return "Ok, you liked \"" + self.titles[movieIdx[0]][0] + "\"! Tell me what you thought of another movie."
                         elif sentiment == -1:
-                            return "Ok, you didn't like \"" + movieTitle[0] + "\"! Tell me what you thought of another movie."
+                            return "Ok, you didn't like \"" + self.titles[movieIdx[0]][0] + "\"! Tell me what you thought of another movie."
                         else: 
                             self.input_count -= 1
                             return "I'm confused, did you like \"" + movieTitle[0] + "\"? Please try to clarify if you liked the movie."
@@ -463,6 +471,7 @@ class Chatbot:
         :param title: a string containing a movie title
         :returns: a list of indices of matching movies
         """
+
         if self.creative:
             movie_titles = []
             res = []
@@ -470,7 +479,6 @@ class Chatbot:
             titleWords = []
             for t in self.titles:
                 movie_titles.append((t[0].lower())) # now storing movie titles tokenized list, sorted so out of order matches
-            
             title = title.lower()
             titleYear.append(re.findall("(\([0-9]+\))", title))
             title = re.sub( "(\([0-9]+\))", "", title) # filter out year from original title
@@ -482,6 +490,12 @@ class Chatbot:
                 newTitle = ' '.join(titleWords)
                 newTitle += ", " + the
                 title = newTitle
+            for i in range(len(self.titles)):
+                currTitle = re.sub("(\([0-9]+\))", "",self.titles[i][0])
+                if len(titleWords) == 1 and titleWords[0] in self.tokenize(currTitle):
+                    res.append(i)
+                elif len(titleWords) != 1 and title in currTitle:
+                    res.append(i)
 
             for i in range(len(movie_titles)):
                 currTitle = movie_titles[i]
@@ -507,8 +521,6 @@ class Chatbot:
             #     return self.find_foreign(title)
 
             return res
-
-
         else:
             res = []
             titleYear = re.findall("(\([0-9]+\))", title) 
@@ -798,6 +810,126 @@ class Chatbot:
                 result.append(i)
         return result
 
+    def check_substring_clarification(self, clarification, candidates):
+        """
+        Looks through the clarification provided by the user for substrings of
+        two or more words that match a substring in a candidate movie title.
+
+        :param clarification: user input intended to disambiguate between the
+        given movies
+        :param candidates: a list of movie indices
+        :returns: a list of indices corresponding to the movies identified by
+        the clarification
+        """
+        new_candidates = set()
+        words = self.tokenize(clarification.lower())
+        for indice in candidates:
+            for start_loc in range(len(words)+1):
+                for end_loc in range(start_loc + 2, len(words)+1):
+                    phrase = ""
+                    for location in range(start_loc, end_loc):
+                        phrase += f" {words[location]}"
+                    phrase = phrase[1:]
+                    if phrase in self.titles[int(indice)][0].lower():
+                        new_candidates.add(int(indice))
+        return list(new_candidates)
+    
+    def sort_movies_by_date(self, input_list):
+        """sorts an input_list of movie indices by the date in the title of the movie.
+        The order is oldest to newest. Returns the sorted list
+        """
+        movie_list = []
+        for movie in input_list:
+            year = int(re.findall("\(([0-9]+)\)", self.titles[int(movie)][0])[0])
+            movie_list.append((year, movie))
+        movie_list.sort()
+        result = []
+        for year, movie in movie_list:
+            result.append(movie)
+        return result
+
+    def clarify_oldest_newest(self, clarification, candidates, full=False):
+        """
+        Looks through the clarification provided by the user for phrases like 
+        "the newer movie", or "the original version" and returns list of indices
+        corresponding to movies that fit that clarification.
+
+        :param clarification: user input intended to disambiguate between the
+        given movies
+        :param candidates: a list of movie indices
+        :param full: use numbers in the clarification
+        :returns: a list of indices corresponding to the movies identified by
+        the clarification
+        """
+        new_candidates = set()
+        # dictionary of phrases to look for
+        order_phrases = {"first": 0, "second": 1, "third": 2, "fourth": 3, "fifth": 4, "sixth": 5, "seventh": 6, "eight": 7, "ninth": 8, "tenth": 9, "1st": 0, "2nd": 1, "3rd": 2, "4th": 3, "5th": 4, "6th": 5, "7th": 6, "8th": 7, "9th": 8, "10th": 9}
+        full_phrases = {"1": 0, "2": 1, "3": 2, "4": 3, "5": 4, "6": 5, "7": 6, "8": 7, "8": 8, "10": 9}
+        latest = ["latest", "recent", "new", "newest", "newer", "later"]
+        earliest = ["earliest", "old", "oldest", "older", "earlier", "original"]
+        words = self.tokenize(clarification.lower())
+        oldest = False
+        newest = False
+        # checks the clarification input
+        for word in earliest:
+            if word in words:
+                oldest = True
+        for word in latest:
+            if word in words:
+                newest = True
+        # finds the oldest movie of the candidates
+        phrases = {}
+        if not full:
+            phrases = order_phrases
+        else:
+            phrases = full_phrases
+        if oldest:
+            offset = 0
+            for order_phrase in phrases:
+                if order_phrase in clarification:
+                    offset = phrases[order_phrase]
+            return [self.sort_movies_by_date(candidates)[offset]]
+        # finds the newest movie of the candidates
+        if newest:
+            offset = 0
+            for order_phrase in phrases:
+                if order_phrase in clarification:
+                    offset = phrases[order_phrase]
+            movie_list = self.sort_movies_by_date(candidates)
+            return [movie_list[len(movie_list) - offset - 1]]
+    
+    def clarify_by_order(self, clarification, candidates, full=False):
+        """
+        Looks through the clarification provided by the user for phrases like 
+        "the second one, or "the last on the list" and returns list of indices
+        corresponding to movies that fit that clarification.
+
+        :param clarification: user input intended to disambiguate between the
+        given movies
+        :param candidates: a list of movie indices
+        :param full: use numbers in the clarification
+        :returns: a list of indices corresponding to the movies identified by
+        the clarification
+        """
+        clarification = clarification.lower()
+        order_phrases = {"first": 0, "second": 1, "third": 2, "fourth": 3, "fifth": 4, "sixth": 5, "seventh": 6, "eight": 7, "ninth": 8, "tenth": 9, "1st": 0, "2nd": 1, "3rd": 2, "4th": 3, "5th": 4, "6th": 5, "7th": 6, "8th": 7, "9th": 8, "10th": 9}
+        reverse_phrases = ["from the end", "from the back", "to last", "to the last", "from last", "from the last", "to the end", "to the back"]
+        full_phrases = {"1": 0, "2": 1, "3": 2, "4": 3, "5": 4, "6": 5, "7": 6, "8": 7, "8": 8, "10": 9}
+        phrases = {}
+        if not full:
+            phrases = order_phrases
+        else:
+            phrases = full_phrases
+        for order_phrase in phrases:
+            for reverse_phrase in reverse_phrases:
+                if f"{order_phrase} {reverse_phrase}" in clarification:
+                    return [candidates[len(candidates) - phrases[order_phrase] - 1]]
+            if order_phrase in clarification:
+                return [candidates[phrases[order_phrase]]]
+        if "last" in clarification or "latter" in clarification:
+            return [candidates[len(candidates) - 1]]
+        return []
+
     def disambiguate(self, clarification, candidates):
         """Creative Feature: Given a list of movies that the user could be
         talking about (represented as indices), and a string given by the user
@@ -821,23 +953,66 @@ class Chatbot:
         :returns: a list of indices corresponding to the movies identified by
         the clarification
         """
-        # new_candidates = []
-        # for indice in candidates:
-        #     if clarification in self.titles[indice][0] and indice not in new_candidates:
-        #         new_candidates.append(indice)
-        # titleYear = re.findall("(\([0-9]+\))", clarification) 
-        # for indice in candidates:
-        #     candidate_year = re.findall("(\([0-9]+\))", self.titles[indice][0])
-        #     if indice not in new_candidates:
-        #         if title_year != "" and titleYear == candidate_year:
-        #             new_candidates.append(indice)
-        #         elif clarification == candidate_year:
-        #             new_candidates.append(indice)
-        #         elif clarification == candidate_year[1:5]:
-        # return new_candidates
+        new_candidates = set()
+        # checks for phrases like "the original" or "the latest one"
+        results = self.clarify_oldest_newest(clarification, candidates)
+        if results:
+            for x in results:
+                new_candidates.add(x)
+        # checks for a location on the list of candidates
+        results = self.clarify_by_order(clarification, candidates)
+        if results and not new_candidates:
+            for x in results:
+                new_candidates.add(x)
+        # checks if substrings of two or more clairifcation words are in the title
+        results = self.check_substring_clarification(clarification, candidates)
+        if results:
+            for x in results:
+                new_candidates.add(x)
         
-
-
+        # finds the movie or movie that matches the name or year in the clarification
+        # extract info from the clarification
+        titleYearParen = re.findall("(\([0-9]+\))", clarification)
+        titlenum = re.findall("([0-9]+)", clarification)
+        titleYear = re.findall("([0-9]{2,4})", clarification)
+        for indice in candidates:
+            # check to see if the clarification info is a match for the candidate info
+            candidate_year = re.findall("(\([0-9]+\))", self.titles[int(indice)][0])[0]
+            candidate_name = re.sub( "(\([0-9]+\))", "", self.titles[int(indice)][0])
+            if clarification in candidate_name:
+                new_candidates.add(int(indice))
+                # new_candidates.add(1) matches "Titanic 2"
+            elif titleYearParen != "" and titleYearParen == candidate_year: # matches  "Titanic (1973)"
+                new_candidates.add(int(indice))
+            elif clarification == candidate_year: # matches"(1973)"
+                new_candidates.add(int(indice))
+            elif clarification == candidate_year[1:5]: # matches "1973"
+                new_candidates.add(int(indice))
+            elif clarification == candidate_year[3:5]: # matches "73"
+                new_candidates.add(int(indice))
+            elif titlenum == candidate_year[1:5]: # matches "Titanic 1973"
+                new_candidates.add(int(indice))
+            elif titleYear != [] and titleYear[0] in self.titles[int(indice)][0]:
+                new_candidates.add(int(indice))
+        new_candidates = list(new_candidates)
+        # if there are no movies that match, try treating numbers like "3" as positional indicators        
+        if new_candidates == []:
+            round_two_candidates = set()
+            # checks for phrases like "the original" or "the latest one"
+            results = self.clarify_oldest_newest(clarification, candidates, True)
+            if results:
+                for x in results:
+                    round_two_candidates.add(x)
+            # checks for a location on the list of candidates
+            results = self.clarify_by_order(clarification, candidates, True)
+            if results and not round_two_candidates:
+                for x in results:
+                    round_two_candidates.add(x)
+            if list(round_two_candidates) == []:
+                return candidates
+            else:
+                return list(round_two_candidates)
+        return new_candidates
 
     ############################################################################
     # 3. Movie Recommendation helper functions                                 #
