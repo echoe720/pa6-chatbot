@@ -377,7 +377,6 @@ class Chatbot:
         else:
             currWords = frozenset(self.tokenize(title))
             if currWords in foreign_titles_set:
-                print("yes")
                 return [foreign_titles_set[currWords]]
         return res
 
