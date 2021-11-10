@@ -483,6 +483,13 @@ class Chatbot:
             titleYear.append(re.findall("(\([0-9]+\))", title))
             title = re.sub( "(\([0-9]+\))", "", title) # filter out year from original title
             titleWords = self.tokenize(title)
+            # TODO: figure out why this no longer passes disambiguation part 1
+            for i in range(len(self.titles)):
+                currTitle = re.sub("(\([0-9]+\))", "",self.titles[i][0])
+                if len(titleWords) == 1 and titleWords[0] in self.tokenize(currTitle):
+                    res.append(i)
+                elif len(titleWords) != 1 and title in currTitle:
+                    res.append(i)
 
             if titleWords[0] in ("the", "a", "an", "le", "el", "la"):
                 the = titleWords[0]
@@ -490,12 +497,6 @@ class Chatbot:
                 newTitle = ' '.join(titleWords)
                 newTitle += ", " + the
                 title = newTitle
-            for i in range(len(self.titles)):
-                currTitle = re.sub("(\([0-9]+\))", "",self.titles[i][0])
-                if len(titleWords) == 1 and titleWords[0] in self.tokenize(currTitle):
-                    res.append(i)
-                elif len(titleWords) != 1 and title in currTitle:
-                    res.append(i)
 
             for i in range(len(movie_titles)):
                 currTitle = movie_titles[i]
