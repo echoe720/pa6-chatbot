@@ -5,7 +5,6 @@
 import util
 from collections import defaultdict
 import numpy as np
-# from nltk.tokenize import word_tokenize # need to delete
 import regex as re 
 from porter_stemmer import PorterStemmer
 from itertools import combinations
@@ -123,7 +122,7 @@ class Chatbot:
         ########################################################################
         self.creative = True
         if self.creative:
-            movieTitle = self.extract_titles(self.preprocess(line))
+            movieTitle = self.extract_titles(self.preprocess(line)) #should call find_movies_closest_to_title in here? Something to think about-- I think the answer is no for now. 
             sentiment = self.extract_sentiment_creative(line)
             affirmative = ["yes", "sure", "ok", "yeah", "y", "affirmative", "i guess so", "fine", "always"]
             negative = ["no", "nah", "never", "negative", "n", "no thanks", "no, thanks", "nope"]
@@ -139,39 +138,51 @@ class Chatbot:
 
                 i = 0
                 if "\"" in line:
-                    x = ""
-                    possibleMovies = self.find_movies_closest_to_title(x) # the input should be the "incorrect" movie title
-                    lenMovies = len(possibleMovies)
+                    allPossibleMovies = []
+                    allMovies = re.findall('"([^"]*)"', line) #explore all possible substrings in the given input sentence??  YES-- like extract_titles
+                    for movie in allMovies:
+                        allPossibleMovies.extend(self.find_movies_closest_to_title(movie)) # the input should be the "incorrect" movie title
+                    lenMovies = len(allPossibleMovies)
+                    # are there still no possible movies?
                     if lenMovies == 0:
                         return "Huh, I\'m not sure what movie you are talking about. What's a different movie that you have seen?"
-                    else:   
-                        answer = input('Did you mean "' + self.titles[possibleMovies[i]][0] + '"?').lower()
-                        noMatch = False
-                        while answer in negative or answer not in affirmative:
-                            i += 1
-                            if i == len(possibleMovies):
-                                noMatch = True
-                                break
-                            else:
-                                answer = input('Did you mean "' + self.titles[possibleMovies[i]][0] + '"?')
-                        if noMatch:
-                            return "Huh, I\'m not sure what movie you are talking about. What's a different movie that you have seen?"
+                    else:
+                        # multiple movies, so we disambiguate
+                        if lenMovies >= 2:   
+                            unclear = True
+                            while unclear:
+                                unclear_movie_titles = []
+                                for id in movieIdx:
+                                    unclear_movie_titles.append(self.titles[id][0])
+                                answer = input("I found more than one movie called " + movieTitle[0] + f". Which of these is the one you are telling me about: {str(unclear_movie_titles)}?\n> ")
+                                movieIdx=self.disambiguate(answer, movieIdx)
+                                if len(movieIdx) == 1: unclear = False
+                        # only one possible movie so we pick that one
                         else:
-                            # self.input_count += 1
-                            return "Great, you liked \"" + self.titles[possibleMovies[i]][0] + "\"."
+                            movieIdx = allPossibleMovies[0]
+                        self.input_count += 1
+                        if self.input_count == 5:
+                            return self.giveRecommendations(affirmative, negative)
+                        else:
+                            return "Great, you liked \"" + self.titles[allPossibleMovies[i]][0] + "\"."
 
-
-
-
-
-
+                foreign_title = self.find_foreign(line)
+                if foreign_title != "":
+                    self.input_count += 1
+                    if sentiment == 1:
+                            return "Ok, you liked \"" + foreign_title[0] + "\"! Tell me what you thought of another movie."
+                    elif sentiment == -1:
+                        return "Ok, you didn't like \"" + foreign_title[0] + "\"! Tell me what you thought of another movie."
+                    else: 
+                        self.input_count -= 1
+                        return "I'm confused, did you like \"" + foreign_title[0] + "\"? Please try to clarify if you liked the movie."  
+                
                 question_keywords = ["can you", "what is"]
                 line = line.lower()
                 for key in question_keywords:
                     if key in line:
                         idx = line.index(key)
                         line = line[idx + len(key):]
-                        # print(line)
                         if "me" in line or "my" in line:
                             line = re.sub("(me)", "you", line)
                             line = re.sub("(my)", "your", line)
@@ -198,14 +209,9 @@ class Chatbot:
                     return "I wasn't able to find that movie."
                 else:
                     return "You don't seem to be talking about movies."
-                # response = "Please use the correct movie title so that I can tell what movie you are talking about."
-                # return response
-            elif len(movieTitle) >= 2: 
-                response = "Please tell me about one movie at a time. What's one movie you have seen?"
-                return response
             else:
                 movieIdx = self.find_movies_by_title(movieTitle[0]) # added [0] here
-                
+                # multiple movies, so we disambiguate
                 if len(movieIdx) >= 2:
                     unclear = True
                     while unclear:
@@ -220,43 +226,18 @@ class Chatbot:
                 self.user_ratings[movieIdx] = sentiment
 
                 if self.input_count == 5:
-                    self.user_ratings = self.binarize(self.user_ratings)
-                    self.ratings = self.binarize(self.ratings)
-                    # print(len(self.titles)) #9125
-                    # print(self.user_ratings.shape) #(9125, )
-                    # print(self.ratings.shape) #(9125, 671)
+                    response = self.giveRecommendations(affirmative, negative)
                     
-                        #get number of movies that the user haven't watched, and pass it in as k to recommend?
-                    k = len([rating for rating in self.user_ratings if rating == 0])
-                    recommendations = self.recommend(self.user_ratings, self.ratings, k, creative=False) #prior k: len(self.titles) - 1.  at most, k will be number of movies
-                    i = -1
-                    affirmative = ["yes", "sure", "ok", "yeah", "y", "affirmative", "i guess so", "fine", "always"]
-                    negative = ["no", "nah", "never", "negative", "n", "no thanks", "no, thanks", "nope"]
-                    answer = "yes" 
-                    while (answer in affirmative):
-                        i += 1
-                        answer = input('I think you\'ll enjoy watching\"' + self.titles[recommendations[i]][0] + '\"! Would you like another recommendations?\n').lower()
-                        if answer in negative:
-                            # response = "Have a nice day. Fullsend!"
-                            break
-                        elif answer not in affirmative and answer not in negative:
-                            currInput = input("Please input \"Yes\" or \"No\". ELON is disappointed in you. Let's try again. Would you like more recommendations?\n").lower()
-                            while (currInput != 'yes' and currInput != 'no'):
-                                currInput = input("Please input \"Yes\" or \"No\". ELON is disappointed in you. Let's try again. Would you like more recommendations?\n")
-                            answer = currInput
-                            
-                        if i == len(self.titles):
-                            response = "We have no more recommendations -- Have a nice day. Fullsend!"
                 else: #if self.input_count < 5
-                    if sentiment == 1:
+                    if sentiment >= 1:
                         return "Ok, you liked \"" + movieTitle[0] + "\"! Tell me what you thought of another movie."
-                    elif sentiment == -1:
+                    elif sentiment <= -1:
                         return "Ok, you didn't like \"" + movieTitle[0] + "\"! Tell me what you thought of another movie."
                     else: 
                         self.input_count -= 1
                         return "I'm confused, did you like \"" + movieTitle[0] + "\"? Please try to clarify if you liked the movie."
             response = self.goodbye()
-        else:
+        else: #starter mode case(non-creative)
             # In starter mode, your chatbot will help the user by giving movie recommendations. 
             # It will ask the user to say something about movies they have liked, and it will come up with a recommendation based on those data points. 
             # The user of the chatbot in starter mode will follow its instructions, so you will deal with fairly restricted input. 
@@ -266,7 +247,7 @@ class Chatbot:
 
             if len(movieTitle) == 0: # added this check for no movie, 
                 #what about the case where mentioned movie is not in the database??
-                response = "Please put quotation marks around the movie name so that I can tell what movie you are talking about."
+                response = "I'm not sure what movie you are talking about. Make sure you are puttting quotation marks around the movie name so that I can tell what movie you are talking about."
                 return response
             elif len(movieTitle) >= 2: 
                 response = "Please tell me about one movie at a time. What's one movie you have seen?"
@@ -278,15 +259,6 @@ class Chatbot:
                 elif len(movieIdx) >= 2:
                     return "I found more than one movie called " + movieTitle[0] + ". Which one were you trying to tell me about?"
                 else:
-                    if self.creative and len(movieIdx) >= 2:
-                        unclear = True
-                        while unclear:
-                            unclear_movie_titles = []
-                            for id in movieIdx:
-                                unclear_movie_titles.append(self.titles[id][0])
-                            answer = input("I found more than one movie called " + movieTitle[0] + f". Which of these is the one you are telling me about: {str(unclear_movie_titles)}?\n> ")
-                            movieIdx=self.disambiguate(answer, movieIdx)
-                            if len(movieIdx) == 1: unclear = False
                     if self.user_ratings[movieIdx] == 0 and sentiment != 0:
                         self.input_count += 1
                     self.user_ratings[movieIdx] = sentiment
@@ -328,6 +300,33 @@ class Chatbot:
                             self.input_count -= 1
                             return "I'm confused, did you like \"" + movieTitle[0] + "\"? Please try to clarify if you liked the movie."
             response = self.goodbye()
+        return response
+
+
+    def giveRecommendations(self, affirmative, negative):
+        self.user_ratings = self.binarize(self.user_ratings)
+        self.ratings = self.binarize(self.ratings)
+        
+        #get number of movies that the user haven't watched, and pass it in as k to recommend?
+        k = len([rating for rating in self.user_ratings if rating == 0])
+        recommendations = self.recommend(self.user_ratings, self.ratings, k, creative=False) #prior k: len(self.titles) - 1.  at most, k will be number of movies
+        i = -1
+        answer = "yes" 
+        response = ""
+        while (answer in affirmative):
+            i += 1
+            answer = input('I think you\'ll enjoy watching\"' + self.titles[recommendations[i]][0] + '\"! Would you like another recommendations?\n').lower()
+            if answer in negative:
+                response = "Have a nice day. Fullsend!"
+                break
+            elif answer not in affirmative and answer not in negative:
+                currInput = input("Please input \"Yes\" or \"No\". ELON is disappointed in you. Let's try again. Would you like more recommendations?\n").lower()
+                while (currInput != 'yes' and currInput != 'no'):
+                    currInput = input("Please input \"Yes\" or \"No\". ELON is disappointed in you. Let's try again. Would you like more recommendations?\n")
+                answer = currInput
+                
+            if i == len(self.titles):
+                response = "We have no more recommendations -- Have a nice day. Fullsend!"
         return response
 
     @staticmethod

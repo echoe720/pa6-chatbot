@@ -243,8 +243,6 @@ backward
 backwardness
 backwood
 backwoods
-bad
-badly
 baffle
 baffled
 bafflement

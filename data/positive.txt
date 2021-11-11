@@ -829,8 +829,6 @@ godlike
 godsend
 gold
 golden
-good
-goodly
 goodness
 goodwill
 goood
