@@ -120,7 +120,7 @@ class Chatbot:
         # directly based on how modular it is, we highly recommended writing   #
         # code in a modular fashion to make it easier to improve and debug.    #
         ########################################################################
-        # self.creative = True
+        self.creative = True
         if self.creative:
             movieTitle = self.extract_titles(self.preprocess(line)) #should call find_movies_closest_to_title in here? Something to think about-- I think the answer is no for now. 
             sentiment = self.extract_sentiment_creative(line)
@@ -156,8 +156,12 @@ class Chatbot:
                                 for id in allPossibleMovies:
                                     unclear_movie_titles.append(self.titles[id][0])
                                 answer = input("I found more with a title similar to " + movieTitle[0] + f". Which of these is the one you are telling me about: {str(unclear_movie_titles)}?\n> ")
-                                movieIdx=self.disambiguate(answer, movieIdx)
-                                if len(movieIdx) == 1: unclear = False
+                                if answer in unclear_movie_titles:
+                                    return "Great, you liked \"" + str(answer) + "\"."
+            
+                                movieIndices = self.disambiguate(answer, movieIdx)
+                                if len(movieIndices) == 1: unclear = False
+                                #is break statement missing?
                        
                         else:  # only one possible movie so we pick that one and ask if that was the right one
                             answer = input("Did you mean " + self.titles[allPossibleMovies[0]][0] + "?")
@@ -199,7 +203,7 @@ class Chatbot:
                         elif key == "what is":
                             return "I don't know what" + line + " is."
 
-                feeling_keywords = ["i am", "feeling"]
+                feeling_keywords = ["i am feeling", "i am", "i'm", "feeling", "i feel", "you are", "you're"]
                 for key in feeling_keywords:
                     if key in line:
                         idx = line.index(key)
@@ -223,8 +227,11 @@ class Chatbot:
                         for id in movieIdx:
                             unclear_movie_titles.append(self.titles[id][0])
                         answer = input("I found more than one movie called " + str(movieTitle[0]) + f". Which of these is the one you are telling me about: {str(unclear_movie_titles)}?\n> ")
-                        movieIdx= self.disambiguate(answer, movieIdx)
-                        if len(movieIdx) == 1: unclear = False
+                        if answer in unclear_movie_titles:
+                            return "Great, you liked \"" + str(answer) + "\"."
+                        movieIdx = self.disambiguate(answer, movieIdx)
+                        if len(movieIdx) == 1: 
+                            unclear = False
                 if self.user_ratings[movieIdx] == 0 and sentiment != 0:
                     self.input_count += 1
                 self.user_ratings[movieIdx] = sentiment
@@ -283,6 +290,8 @@ class Chatbot:
                         answer = "yes" 
                         while (answer in affirmative):
                             i += 1
+                            print(recommendations)
+                            print(recommendations[i][0])
                             answer = input('I think you\'ll enjoy watching\"' + self.titles[recommendations[i]][0] + '\"! Would you like another recommendations?\n').lower()
                             if answer in negative:
                                 # response = "Have a nice day. Fullsend!"
@@ -319,6 +328,10 @@ class Chatbot:
         response = ""
         while (answer in affirmative):
             i += 1
+            if i == len(self.titles):
+                response = "We have no more recommendations -- Have a nice day. Fullsend!"
+            print(recommendations)
+            print(recommendations[i][0])
             answer = input('I think you\'ll enjoy watching\"' + self.titles[recommendations[i]][0] + '\"! Would you like another recommendations?\n').lower()
             if answer in negative:
                 response = "Have a nice day. Fullsend!"
@@ -329,8 +342,7 @@ class Chatbot:
                     currInput = input("Please input \"Yes\" or \"No\". ELON is disappointed in you. Let's try again. Would you like more recommendations?\n")
                 answer = currInput
                 
-            if i == len(self.titles):
-                response = "We have no more recommendations -- Have a nice day. Fullsend!"
+            
         return response
 
     @staticmethod
@@ -418,6 +430,9 @@ class Chatbot:
 
             # eliminate overlapping indices (eliminate the shorter one)
             for i in range(1, len(index_list)):
+                print(index_list)
+                print(index_list[i][0])
+                print(index_list[i-1][1])
                 if index_list[i][0] <= index_list[i-1][1]: # there is overlap
                     len1 = index_list[i][1] - index_list[i][0] + 1
                     len2 = index_list[i-1][1] - index_list[i-1][0] + 1
@@ -436,11 +451,10 @@ class Chatbot:
     # edge 7603%Babies (Bébé(s)) (2010)%Documentary
     # working 5190%Soldier of Orange (a.k.a. Survival Run) (Soldaat van Oranje) (1977)%Drama|Thriller|War
 
-    def find_foreign(self, title):
+    def find_foreign(self, titleList):
         res = []
         foreign_dict = {}
-        title = str(title[0])
-        print(title)
+        title = str(titleList[0])
         titleYear = re.findall("(\([0-9]+\))", title) 
         title = re.sub( "(\([0-9]+\))", "", title) # filter out year from original title
         titleWords = self.tokenize(title)
