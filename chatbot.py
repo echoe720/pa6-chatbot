@@ -120,12 +120,13 @@ class Chatbot:
         # directly based on how modular it is, we highly recommended writing   #
         # code in a modular fashion to make it easier to improve and debug.    #
         ########################################################################
-        self.creative = True
+        # self.creative = True
         if self.creative:
             movieTitle = self.extract_titles(self.preprocess(line)) #should call find_movies_closest_to_title in here? Something to think about-- I think the answer is no for now. 
             sentiment = self.extract_sentiment_creative(line)
             affirmative = ["yes", "sure", "ok", "yeah", "y", "affirmative", "i guess so", "fine", "always"]
             negative = ["no", "nah", "never", "negative", "n", "no thanks", "no, thanks", "nope"]
+            movieIdx = 0
 
             if len(movieTitle) == 0: # added this check for no movie, 
                 #what about the case where mentioned movie is not in the database??
@@ -152,30 +153,33 @@ class Chatbot:
                             unclear = True
                             while unclear:
                                 unclear_movie_titles = []
-                                for id in movieIdx:
+                                for id in allPossibleMovies:
                                     unclear_movie_titles.append(self.titles[id][0])
-                                answer = input("I found more than one movie called " + movieTitle[0] + f". Which of these is the one you are telling me about: {str(unclear_movie_titles)}?\n> ")
+                                answer = input("I found more with a title similar to " + movieTitle[0] + f". Which of these is the one you are telling me about: {str(unclear_movie_titles)}?\n> ")
                                 movieIdx=self.disambiguate(answer, movieIdx)
                                 if len(movieIdx) == 1: unclear = False
-                        # only one possible movie so we pick that one
-                        else:
+                       
+                        else:  # only one possible movie so we pick that one and ask if that was the right one
+                            answer = input("Did you mean " + self.titles[allPossibleMovies[0]][0] + "?")
                             movieIdx = allPossibleMovies[0]
+                            if answer in negative:
+                                return "Huh, I\'m not sure what movie you are talking about. What's a different movie that you have seen?"
                         self.input_count += 1
                         if self.input_count == 5:
                             return self.giveRecommendations(affirmative, negative)
                         else:
-                            return "Great, you liked \"" + self.titles[allPossibleMovies[i]][0] + "\"."
+                            return "Great, you liked \"" + self.titles[movieIdx][0] + "\"."
 
-                foreign_title = self.find_foreign(line)
-                if foreign_title != "":
-                    self.input_count += 1
-                    if sentiment == 1:
-                            return "Ok, you liked \"" + foreign_title[0] + "\"! Tell me what you thought of another movie."
-                    elif sentiment == -1:
-                        return "Ok, you didn't like \"" + foreign_title[0] + "\"! Tell me what you thought of another movie."
-                    else: 
-                        self.input_count -= 1
-                        return "I'm confused, did you like \"" + foreign_title[0] + "\"? Please try to clarify if you liked the movie."  
+                # foreign_title = self.find_foreign(line)
+                # if foreign_title != "":
+                #     self.input_count += 1
+                #     if sentiment == 1:
+                #             return "Ok, you liked \"" + foreign_title[0] + "\"! Tell me what you thought of another movie."
+                #     elif sentiment == -1:
+                #         return "Ok, you didn't like \"" + foreign_title[0] + "\"! Tell me what you thought of another movie."
+                #     else: 
+                #         self.input_count -= 1
+                #         return "I'm confused, did you like \"" + foreign_title[0] + "\"? Please try to clarify if you liked the movie."  
                 
                 question_keywords = ["can you", "what is"]
                 line = line.lower()
@@ -218,8 +222,8 @@ class Chatbot:
                         unclear_movie_titles = []
                         for id in movieIdx:
                             unclear_movie_titles.append(self.titles[id][0])
-                        answer = input("I found more than one movie called " + movieTitle[0] + f". Which of these is the one you are telling me about: {str(unclear_movie_titles)}?\n> ")
-                        movieIdx=self.disambiguate(answer, movieIdx)
+                        answer = input("I found more than one movie called " + str(movieTitle[0]) + f". Which of these is the one you are telling me about: {str(unclear_movie_titles)}?\n> ")
+                        movieIdx= self.disambiguate(answer, movieIdx)
                         if len(movieIdx) == 1: unclear = False
                 if self.user_ratings[movieIdx] == 0 and sentiment != 0:
                     self.input_count += 1
@@ -383,6 +387,12 @@ class Chatbot:
             return re.findall('"([^"]*)"', preprocessed_input)
         else:
             movie_titles = []
+            quote = re.findall('"([^"]*)"', preprocessed_input)
+            if quote != []:
+                foreign = self.find_foreign(quote)
+                if foreign != []:
+                    return foreign # just added to handle foreign
+           
             for title in self.titles:
                 movie_titles.append(sorted(self.tokenize(title[0].lower()))) # now storing movie titles tokenized list, sorted so out of order matches
                 movie_titles.append(sorted(self.tokenize(re.sub("( \([0-9]+\))", "", title[0]).lower()))) # add both the title w/ year and without to list
@@ -429,6 +439,8 @@ class Chatbot:
     def find_foreign(self, title):
         res = []
         foreign_dict = {}
+        title = str(title[0])
+        print(title)
         titleYear = re.findall("(\([0-9]+\))", title) 
         title = re.sub( "(\([0-9]+\))", "", title) # filter out year from original title
         titleWords = self.tokenize(title)
@@ -451,11 +463,12 @@ class Chatbot:
         # print(foreign_titles)
 
         if title in foreign_dict:
-            return [foreign_dict[title]]
+            print(title)
+            return self.titles[foreign_dict[title]]
         else:
             currWords = frozenset(self.tokenize(title))
             if currWords in foreign_titles_set:
-                return [foreign_titles_set[currWords]]
+                return self.titles[foreign_titles_set[currWords]]
         return res
 
     def find_movies_by_title(self, title):
@@ -484,7 +497,7 @@ class Chatbot:
             titleWords = []
             for t in self.titles:
                 movie_titles.append((t[0].lower())) # now storing movie titles tokenized list, sorted so out of order matches
-            title = title.lower()
+            title = str(title).lower()
             titleYear.append(re.findall("(\([0-9]+\))", title))
             title = re.sub( "(\([0-9]+\))", "", title) # filter out year from original title
             titleWords = self.tokenize(title)

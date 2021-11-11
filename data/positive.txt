@@ -1080,13 +1080,6 @@ liberate
 liberation
 liberty
 lifesaver
-light-hearted
-lighter
-likable
-like
-liked
-likes
-liking
 lionhearted
 lively
 logical
@@ -1103,7 +1096,6 @@ loving
 low-cost
 low-price
 low-priced
-low-risk
 lower-priced
 loyal
 loyalty
