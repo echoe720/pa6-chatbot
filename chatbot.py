@@ -305,7 +305,7 @@ class Chatbot:
                             i += 1
                             # print(recommendations)
                             # print(recommendations[i][0])
-                            answer = input('I think you\'ll enjoy watching\"' + self.titles[recommendations[i]][0] + '\"! Would you like another recommendations?\n').lower()
+                            answer = input('I think you\'ll enjoy watching \"' + self.titles[recommendations[i]][0] + '\"! Would you like another recommendations?\n').lower()
                             if answer in negative:
                                 # response = "Have a nice day. Fullsend!"
                                 break
@@ -539,11 +539,12 @@ class Chatbot:
                 newTitle = ' '.join(titleWords)
                 newTitle += ", " + the
                 title = newTitle
-
             for i in range(len(movie_titles)):
                 currTitle = movie_titles[i]
+                currYear = re.findall("(\([0-9]+\))", currTitle)
                 if len(titleWords) == 1 and list(titleWords)[0] in self.tokenize(currTitle):
-                    res.append(i)
+                    if titleYear[0] == [] or titleYear[0] == currYear[0]:
+                        res.append(i)
                 elif len(titleWords) != 1 and title in currTitle:
                     res.append(i)
                 else:
@@ -563,7 +564,7 @@ class Chatbot:
             # print(len(res))
             # if len(res) == 0:
             #     return self.find_foreign(title)
-
+            print(res)
             return res
         else:
             res = []
