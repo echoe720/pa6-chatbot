@@ -122,13 +122,14 @@ class Chatbot:
         ########################################################################
         # self.creative = True
         if self.creative:
-            movieTitle = self.extract_titles(self.preprocess(line)) #should call find_movies_closest_to_title in here? Something to think about-- I think the answer is no for now. 
-            sentiment = self.extract_sentiment_creative(line)
+            movieTitles = self.extract_titles(self.preprocess(line)) #list of possible MovieTitles  #should call find_movies_closest_to_title in here? Something to think about-- I think the answer is no for now. 
+            print('movieTitles: ', movieTitles)
+            
             affirmative = ["yes", "sure", "ok", "yeah", "y", "affirmative", "i guess so", "fine", "always"]
             negative = ["no", "nah", "never", "negative", "n", "no thanks", "no, thanks", "nope"]
             movieIdx = 0
 
-            if len(movieTitle) == 0: # added this check for no movie, 
+            if len(movieTitles) == 0: # added this check for no movie, 
                 #what about the case where mentioned movie is not in the database??
                 # process for emotion
 
@@ -138,7 +139,7 @@ class Chatbot:
                 # if len(movieIdx) == 0: #if no movie was initially found 
 
                 i = 0
-                if "\"" in line:
+                if "\"" in line: #weak logic check here.. come back and fix
                     allPossibleMovies = []
                     allMovies = re.findall('"([^"]*)"', line) #explore all possible substrings in the given input sentence??  YES-- like extract_titles
                     for movie in allMovies:
@@ -217,36 +218,44 @@ class Chatbot:
                     return "I wasn't able to find that movie."
                 else:
                     return "You don't seem to be talking about movies."
-            else:
-                movieIdx = self.find_movies_by_title(movieTitle[0]) # added [0] here
+            else: #if len(movieTitles) != 0 --> if there is one or more possible movies that the user was indicating (e.g. input: Harry Potter --> the 6 harry potter movies)
+                movieIndices = self.find_movies_by_title(movieTitles[0]) # THIS LOGIC IS INCORRECT-- COME BACK!!  this case doesn't work: I love Fists in the Pocket (Pugni in tasca, I) (1965)
+                print('movieIndices: ', movieIndices) #empty in cases of certain movies right now.....
+                movieIdx = movieIndices[0] #initializing
+
                 # multiple movies, so we disambiguate
-                if len(movieIdx) >= 2:
+                if len(movieIndices) >= 2:
                     unclear = True
+                    # print(movieTitle)
+                    
                     while unclear:
                         unclear_movie_titles = []
-                        for id in movieIdx:
+                        for id in movieIndices:
                             unclear_movie_titles.append(self.titles[id][0])
-                        answer = input("I found more than one movie called " + str(movieTitle[0]) + f". Which of these is the one you are telling me about: {str(unclear_movie_titles)}?\n> ")
+                        answer = input("I found more than one movie called " + str(movieTitles[0]) + f". Which of these is the one you are telling me about: {str(unclear_movie_titles)}?\n> ")
                         if answer in unclear_movie_titles:
                             return "Great, you liked \"" + str(answer) + "\"."
-                        movieIdx = self.disambiguate(answer, movieIdx)
+                        movieIdx = self.disambiguate(answer, movieIndices)
                         if len(movieIdx) == 1: 
                             unclear = False
+
+                sentiment = self.extract_sentiment_creative(line)
+                # print('Sentiment: ', sentiment)
+
                 if self.user_ratings[movieIdx] == 0 and sentiment != 0:
                     self.input_count += 1
                 self.user_ratings[movieIdx] = sentiment
 
                 if self.input_count == 5:
                     response = self.giveRecommendations(affirmative, negative)
-                    
                 else: #if self.input_count < 5
                     if sentiment >= 1:
-                        return "Ok, you liked \"" + movieTitle[0] + "\"! Tell me what you thought of another movie."
+                        return "Ok, you liked \"" + movieTitles[0] + "\"! Tell me what you thought of another movie."
                     elif sentiment <= -1:
-                        return "Ok, you didn't like \"" + movieTitle[0] + "\"! Tell me what you thought of another movie."
+                        return "Ok, you didn't like \"" + movieTitles[0] + "\"! Tell me what you thought of another movie."
                     else: 
                         self.input_count -= 1
-                        return "I'm confused, did you like \"" + movieTitle[0] + "\"? Please try to clarify if you liked the movie."
+                        return "I'm confused, did you like \"" + movieTitles[0] + "\"? Please try to clarify if you liked the movie."
             response = self.goodbye()
 
 
@@ -444,9 +453,9 @@ class Chatbot:
             # eliminate overlapping indices (eliminate the shorter one)
             i = 1
             while i < len(index_list):
-                print(index_list)
-                print(index_list[i][0])
-                print(index_list[i-1][1])
+                # print(index_list)
+                # print(index_list[i][0])
+                # print(index_list[i-1][1])
                 if index_list[i][0] <= index_list[i-1][1]: # there is overlap
                     len1 = index_list[i][1] - index_list[i][0] + 1
                     len2 = index_list[i-1][1] - index_list[i-1][0] + 1
@@ -697,14 +706,24 @@ class Chatbot:
         # Cases to consider:
         # Case 1. Extreme words behind pos/neg word(s). 
         # Case 2. Words themselves are really strongly positive or negative 
+        
         extreme_flag = False
         
-        preprocessed_input = re.sub('"([^"]*)"', "", preprocessed_input).lower()
-        extreme_words = re.findall("(:?r+e+a+l+l+y+)|(:?e+x+t+r+e+m+e+l+y+)|(:?v+e+r+y+)", preprocessed_input) #it is okay to just find as many as possible manually
+        currTitles = self.extract_titles(preprocessed_input) #lowercased title extracted, and currTitles at this point should be a list of size 1 (one title)
+        # print('currTitles in sentiment_creative: ', currTitles)
+
+        preprocessed_input = preprocessed_input.lower()
+        preprocessed_input = preprocessed_input.replace(currTitles[0], "")
+        # preprocessed_input = re.sub(currTitles[0], "", preprocessed_input)
+        # print('preprocessed_input in sentiment_creative: ', preprocessed_input)
+
+        # preprocessed_input = re.sub('"([^"]*)"', "", preprocessed_input).lower() #this doesn't work in cases where the input doesn't have "quoted" movies
+
+        extreme_words = re.findall("(:?r+e+a+l+l+y+)|(:?e+x+t+r+e+m+e+l+y+)|(:?v+e+r+y+)", preprocessed_input) #it is okay to just find as many as possible manually, but what about "I don't really like??"
         preprocessed_input = self.tokenize(preprocessed_input)
 
-        extreme_negative_words = open('data/negative.txt', 'r').readlines() #not quite negative-- replace with new txt file. #just cite it!
-        extreme_positive_words = open('data/positive.txt', 'r').readlines() #not quite positive-- replace with new txt file
+        extreme_negative_words = open('data/negative.txt', 'r').readlines() #not quite negative-- replace with new txt file. ALL LOWERCASED #just cite it!
+        extreme_positive_words = open('data/positive.txt', 'r').readlines() #not quite positive-- replace with new txt file. ALL LOWERCASED
         
         for item in preprocessed_input:
             if item in extreme_words:
