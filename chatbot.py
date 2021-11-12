@@ -156,7 +156,7 @@ class Chatbot:
                                 unclear_movie_titles = []
                                 for id in allPossibleMovies:
                                     unclear_movie_titles.append(self.titles[id][0])
-                                answer = input("I found more with a title similar to " + movieTitle[0] + f". Which of these is the one you are telling me about: {str(unclear_movie_titles)}?\n> ")
+                                answer = input("I found more with a title similar to " + movieTitles[0] + f". Which of these is the one you are telling me about: {str(unclear_movie_titles)}?\n> ")
                                 if answer in unclear_movie_titles:
                                     return "Great, you liked \"" + str(answer) + "\"."
             
@@ -314,7 +314,7 @@ class Chatbot:
                             i += 1
                             # print(recommendations)
                             # print(recommendations[i][0])
-                            answer = input('I think you\'ll enjoy watching\"' + self.titles[recommendations[i]][0] + '\"! Would you like another recommendations?\n').lower()
+                            answer = input('I think you\'ll enjoy watching \"' + self.titles[recommendations[i]][0] + '\"! Would you like another recommendations?\n').lower()
                             if answer in negative:
                                 # response = "Have a nice day. Fullsend!"
                                 break
@@ -551,12 +551,13 @@ class Chatbot:
 
             for i in range(len(movie_titles)):
                 currTitle = movie_titles[i]
+                currYear = re.findall("(\([0-9]+\))", currTitle)
                 if len(titleWords) == 1 and list(titleWords)[0] in self.tokenize(currTitle):
-                    res.append(i)
+                    if titleYear[0] == [] or titleYear[0] == currYear[0]:
+                        res.append(i)
                 elif len(titleWords) != 1 and title in currTitle:
                     res.append(i)
                 else:
-                    currYear = re.findall("(\([0-9]+\))", currTitle)
                     currTitle = re.sub("(\([0-9]+\))", "", currTitle)
                     currWords = self.tokenize(currTitle)
                     sameMovie = True
