@@ -219,9 +219,8 @@ class Chatbot:
                 else:
                     return "You don't seem to be talking about movies."
             else: #if len(movieTitles) != 0 --> if there is one or more possible movies that the user was indicating (e.g. input: Harry Potter --> the 6 harry potter movies)
-                movieIndices = self.find_movies_by_title(movieTitles[0]) # THIS LOGIC IS INCORRECT-- COME BACK!!  this case doesn't work: I love Fists in the Pocket (Pugni in tasca, I) (1965)
-                print('movieIndices: ', movieIndices) #empty in cases of certain movies right now.....
-                movieIdx = movieIndices[0] #initializing
+                movieIndices = self.find_movies_by_title(movieTitles[0]) #why is this necessary again?
+                # print('movieIndices: ', movieIndices) #empty in cases of certain movies right now (if that matters-- it is maybe solved in disambiguate)
 
                 # multiple movies, so we disambiguate
                 if len(movieIndices) >= 2:
