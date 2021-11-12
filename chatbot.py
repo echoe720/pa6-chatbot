@@ -120,7 +120,7 @@ class Chatbot:
         # directly based on how modular it is, we highly recommended writing   #
         # code in a modular fashion to make it easier to improve and debug.    #
         ########################################################################
-        self.creative = True
+        # self.creative = True
         if self.creative:
             movieTitle = self.extract_titles(self.preprocess(line)) #should call find_movies_closest_to_title in here? Something to think about-- I think the answer is no for now. 
             sentiment = self.extract_sentiment_creative(line)
@@ -248,6 +248,10 @@ class Chatbot:
                         self.input_count -= 1
                         return "I'm confused, did you like \"" + movieTitle[0] + "\"? Please try to clarify if you liked the movie."
             response = self.goodbye()
+
+
+
+
         else: #starter mode case(non-creative)
             # In starter mode, your chatbot will help the user by giving movie recommendations. 
             # It will ask the user to say something about movies they have liked, and it will come up with a recommendation based on those data points. 
@@ -255,6 +259,7 @@ class Chatbot:
             # Movie names will come in quotation marks and expressions of sentiment will be simple.
             movieTitle = self.extract_titles(self.preprocess(line))
             sentiment = self.extract_sentiment(line)
+            # print(sentiment)
 
             if len(movieTitle) == 0: # added this check for no movie, 
                 #what about the case where mentioned movie is not in the database??
@@ -264,34 +269,42 @@ class Chatbot:
                 response = "Please tell me about one movie at a time. What's one movie you have seen?"
                 return response
             else:
-                movieIdx = self.find_movies_by_title(movieTitle[0]) # added [0] here
-                if len(movieIdx) == 0:
+                # print(movieTitle[0])
+                movieIndices = self.find_movies_by_title(movieTitle[0]) # added [0] here
+                if len(movieIndices) == 0:
                     return "Huh, I\'m not sure what movie you are talking about. What's a different movie that you have seen?"
-                elif len(movieIdx) >= 2:
+                elif len(movieIndices) >= 2:
                     return "I found more than one movie called " + movieTitle[0] + ". Which one were you trying to tell me about?"
                 else:
-                    if self.user_ratings[movieIdx] == 0 and sentiment != 0:
+                    movieIdx = movieIndices[0]
+                    # print(self.titles[movieIdx][0])
+                    
+                    if self.user_ratings[movieIdx] == 0 and sentiment != 0: #if the user hasn't watched the movie already and the sentiment of the current movie is positive or negative:
                         self.input_count += 1
                     self.user_ratings[movieIdx] = sentiment
 
                     if self.input_count == 5:
-                        self.user_ratings = self.binarize(self.user_ratings)
+                        self.user_ratings = self.user_ratings
                         self.ratings = self.binarize(self.ratings)
                         # print(len(self.titles)) #9125
                         # print(self.user_ratings.shape) #(9125, )
                         # print(self.ratings.shape) #(9125, 671)
                         
-                        #get number of movies that the user haven't watched, and pass it in as k to recommend?
+                        #get number of movies that the user haven't watched, and pass it in as k to recommend
                         k = len([rating for rating in self.user_ratings if rating == 0])
-                        recommendations = self.recommend(self.user_ratings, self.ratings, k, creative=False) #prior k: len(self.titles) - 1.  at most, k will be number of movies
+                        # print(k) #9120
+                        
+                        recommendations = self.recommend(self.user_ratings, self.ratings, k, creative=self.creative) #prior k: len(self.titles) - 1.  at most, k will be number of movies
+                        # print(recommendations) #currently giving Women of 69 unboxed followed by Gay Desperado for all inputs as first two recs"
+
                         i = -1
                         affirmative = ["yes", "sure", "ok", "yeah", "y", "affirmative", "i guess so", "fine", "always"]
                         negative = ["no", "nah", "never", "negative", "n", "no thanks", "no, thanks", "nope"]
                         answer = "yes" 
                         while (answer in affirmative):
                             i += 1
-                            print(recommendations)
-                            print(recommendations[i][0])
+                            # print(recommendations)
+                            # print(recommendations[i][0])
                             answer = input('I think you\'ll enjoy watching\"' + self.titles[recommendations[i]][0] + '\"! Would you like another recommendations?\n').lower()
                             if answer in negative:
                                 # response = "Have a nice day. Fullsend!"
@@ -306,9 +319,9 @@ class Chatbot:
                                 response = "We have no more recommendations -- Have a nice day. Fullsend!"
                     else: #if self.input_count < 5
                         if sentiment == 1:
-                            return "Ok, you liked \"" + self.titles[movieIdx[0]][0] + "\"! Tell me what you thought of another movie."
+                            return "Ok, you liked \"" + self.titles[movieIdx][0] + "\"! Tell me what you thought of another movie."
                         elif sentiment == -1:
-                            return "Ok, you didn't like \"" + self.titles[movieIdx[0]][0] + "\"! Tell me what you thought of another movie."
+                            return "Ok, you didn't like \"" + self.titles[movieIdx][0] + "\"! Tell me what you thought of another movie."
                         else: 
                             self.input_count -= 1
                             return "I'm confused, did you like \"" + movieTitle[0] + "\"? Please try to clarify if you liked the movie."
@@ -317,12 +330,11 @@ class Chatbot:
 
 
     def giveRecommendations(self, affirmative, negative):
-        self.user_ratings = self.binarize(self.user_ratings)
         self.ratings = self.binarize(self.ratings)
         
         #get number of movies that the user haven't watched, and pass it in as k to recommend?
         k = len([rating for rating in self.user_ratings if rating == 0])
-        recommendations = self.recommend(self.user_ratings, self.ratings, k, creative=False) #prior k: len(self.titles) - 1.  at most, k will be number of movies
+        recommendations = self.recommend(self.user_ratings, self.ratings, k, creative=self.creative) #prior k: len(self.titles) - 1.  at most, k will be number of movies
         i = -1
         answer = "yes" 
         response = ""
@@ -1159,7 +1171,7 @@ class Chatbot:
         scoresToMovie = []
         for movie in movieScore:
             if user_ratings[movie] == 0: #if the user has not watched the movie 
-                scoresToMovie.append((movieScore[movie], movie))
+                scoresToMovie.append((movieScore[movie], movie)) #do the movie indices here correspond with the "acutal" movie indices in self.titles?
             
         scoresToMovie = sorted(scoresToMovie, reverse=True) #sorted(ratingsToMovie, key=lambda rating : rating[0], reverse=True)
         # print(len(scoresToMovie))
