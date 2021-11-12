@@ -441,7 +441,8 @@ class Chatbot:
             index_list = sorted(index_list)
 
             # eliminate overlapping indices (eliminate the shorter one)
-            for i in range(1, len(index_list)):
+            i = 1
+            while i < len(index_list):
                 print(index_list)
                 print(index_list[i][0])
                 print(index_list[i-1][1])
@@ -450,8 +451,11 @@ class Chatbot:
                     len2 = index_list[i-1][1] - index_list[i-1][0] + 1
                     if len2 > len1:
                         index_list.pop(i) # pop the smaller one
+                        i -= 1
                     else:
                         index_list.pop(i-1)
+                        i -= 1
+                i += 1 
             
             for index in index_list:
                 movie_title = ' '.join(split_words[index[0]:index[1] + 1])
