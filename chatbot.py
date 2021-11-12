@@ -342,8 +342,9 @@ class Chatbot:
             i += 1
             if i == len(self.titles):
                 response = "We have no more recommendations -- Have a nice day. Fullsend!"
-            print(recommendations)
-            print(recommendations[i][0])
+            # print(recommendations)
+            # print(recommendations[i])
+            # print(recommendations[i][0])
             answer = input('I think you\'ll enjoy watching\"' + self.titles[recommendations[i]][0] + '\"! Would you like another recommendations?\n').lower()
             if answer in negative:
                 response = "Have a nice day. Fullsend!"
