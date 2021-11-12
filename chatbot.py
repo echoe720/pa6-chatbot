@@ -156,7 +156,7 @@ class Chatbot:
                                 unclear_movie_titles = []
                                 for id in allPossibleMovies:
                                     unclear_movie_titles.append(self.titles[id][0])
-                                answer = input("I found more with a title similar to " + movieTitle[0] + f". Which of these is the one you are telling me about: {str(unclear_movie_titles)}?\n> ")
+                                answer = input("I found more with a title similar to " + movieTitles[0] + f". Which of these is the one you are telling me about: {str(unclear_movie_titles)}?\n> ")
                                 if answer in unclear_movie_titles:
                                     return "Great, you liked \"" + str(answer) + "\"."
             
@@ -557,7 +557,6 @@ class Chatbot:
                 elif len(titleWords) != 1 and title in currTitle:
                     res.append(i)
                 else:
-                    currYear = re.findall("(\([0-9]+\))", currTitle)
                     currTitle = re.sub("(\([0-9]+\))", "", currTitle)
                     currWords = self.tokenize(currTitle)
                     sameMovie = True
