@@ -122,7 +122,7 @@ class Chatbot:
         ########################################################################
         # self.creative = True
         if self.creative:
-            movieTitles = self.extract_titles(self.preprocess(line)) #list of possible MovieTitles  #should call find_movies_closest_to_title in here? Something to think about-- I think the answer is no for now. 
+            movieTitles = self.extract_titles(self.preprocess(line)) #list of EXACT movie Titles matches    #should call find_movies_closest_to_title in here? Something to think about-- I think the answer is no for now. 
             # print('movieTitles: ', movieTitles)
             
             affirmative = ["yes", "sure", "ok", "yeah", "y", "affirmative", "i guess so", "fine", "always"]
@@ -215,48 +215,50 @@ class Chatbot:
                         elif line_sentiment == 1:
                             return "Glad you feel" + line + ". ELON is very happy :)"
                 if "\"" in line:
-                    return "I wasn't able to find that movie."
+                    return "I wasn't able to find that movie. Please try again."
                 else:
                     return "You don't seem to be talking about movies."
-            else: #if len(movieTitles) != 0 --> if there is one or more possible movies that the user was indicating (e.g. input: Harry Potter --> the 6 harry potter movies)
-                movieIndices = self.find_movies_by_title(movieTitles[0]) #why is this necessary again?
-                # print('movieIndices: ', movieIndices) #empty in cases of certain movies right now (if that matters-- it is maybe solved in disambiguate)
-                movieIdx = movieIndices[0] #initializing after disambiguation
+            else: #if len(movieTitles) >= 1 (should always be 1)
+                movieIndices = self.find_movies_by_title(movieTitles[0]) #find movieIndices-- it should always return movieIdx with size 1
+                if len(movieIndices) > 0: #technically, this condition should always be the case, with len(movieIndices) being 1
+                    movieIdx = movieIndices[0] #initializing after disambiguation
 
-                # multiple movies, so we disambiguate
-                if len(movieIndices) >= 2:
-                    unclear = True
-                    # print(movieTitle)
-                    
-                    while unclear:
-                        unclear_movie_titles = []
-                        for id in movieIndices:
-                            unclear_movie_titles.append(self.titles[id][0])
-                        answer = input("I found more than one movie called " + str(movieTitles[0]) + f". Which of these is the one you are telling me about: {str(unclear_movie_titles)}?\n> ")
-                        if answer in unclear_movie_titles:
-                            return "Great, you liked \"" + str(answer) + "\"."
-                        movieIdx = self.disambiguate(answer, movieIndices)
-                        if len(movieIdx) == 1: 
-                            unclear = False
-                sentiment = self.extract_sentiment_creative(line)
-                # print('Sentiment: ', sentiment)
+                    # multiple movies, so we disambiguate
+                    if len(movieIndices) >= 2:
+                        unclear = True
+                        # print(movieTitle)
+                        
+                        while unclear:
+                            unclear_movie_titles = []
+                            for id in movieIndices:
+                                unclear_movie_titles.append(self.titles[id][0])
+                            answer = input("I found more than one movie called " + str(movieTitles[0]) + f". Which of these is the one you are telling me about: {str(unclear_movie_titles)}?\n> ")
+                            if answer in unclear_movie_titles:
+                                return "Great, you liked \"" + str(answer) + "\"."
+                            movieIdx = self.disambiguate(answer, movieIndices)
+                            if len(movieIdx) == 1: 
+                                unclear = False
+                    sentiment = self.extract_sentiment_creative(line)
+                    # print('Sentiment: ', sentiment)
 
-                if self.user_ratings[movieIdx] == 0 and sentiment != 0:
-                    self.input_count += 1
-                self.user_ratings[movieIdx] = sentiment
+                    if self.user_ratings[movieIdx] == 0 and sentiment != 0:
+                        self.input_count += 1
+                    self.user_ratings[movieIdx] = sentiment
 
-                if self.input_count == 5:
-                    response = self.giveRecommendations(affirmative, negative)
-                else: #if self.input_count < 5
-                    if isinstance(movieIdx, list): # disambiguate (or something) returns movieIndx as a list; here we expect it to be one index
-                        movieIdx = movieIdx[0]
-                    if sentiment >= 1:
-                        return "Ok, you liked \"" + self.titles[movieIdx][0] + "\"! Tell me what you thought of another movie."
-                    elif sentiment <= -1:
-                        return "Ok, you didn't like \"" + movieTitles[0] + "\"! Tell me what you thought of another movie."
-                    else: 
-                        self.input_count -= 1
-                        return "I'm confused, did you like \"" + movieTitles[0] + "\"? Please try to clarify if you liked the movie."
+                    if self.input_count == 5:
+                        response = self.giveRecommendations(affirmative, negative)
+                    else: #if self.input_count < 5
+                        if isinstance(movieIdx, list): # disambiguate (or something) returns movieIndx as a list; here we expect it to be one index
+                            movieIdx = movieIdx[0]
+                        if sentiment >= 1:
+                            return "Ok, you liked \"" + self.titles[movieIdx][0] + "\"! Tell me what you thought of another movie."
+                        elif sentiment <= -1:
+                            return "Ok, you didn't like \"" + movieTitles[0] + "\"! Tell me what you thought of another movie."
+                        else: 
+                            self.input_count -= 1
+                            return "I'm confused, did you like \"" + movieTitles[0] + "\"? Please try to clarify if you liked the movie."
+                else:
+                    return "I wasn't able to find that movie. Please try again."
             response = self.goodbye()
 
 
