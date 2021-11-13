@@ -123,7 +123,7 @@ class Chatbot:
         # self.creative = True
         if self.creative:
             movieTitles = self.extract_titles(self.preprocess(line)) #list of possible MovieTitles  #should call find_movies_closest_to_title in here? Something to think about-- I think the answer is no for now. 
-            print('movieTitles: ', movieTitles)
+            # print('movieTitles: ', movieTitles)
             
             affirmative = ["yes", "sure", "ok", "yeah", "y", "affirmative", "i guess so", "fine", "always"]
             negative = ["no", "nah", "never", "negative", "n", "no thanks", "no, thanks", "nope"]
@@ -161,7 +161,6 @@ class Chatbot:
                                     return "Great, you liked \"" + str(answer) + "\"."
             
                                 movieIndices = self.disambiguate(answer, movieIdx)
-                                print("disam", movieIndices)
                                 if len(movieIndices) == 1: unclear = False
                                 #is break statement missing?
                        
@@ -249,12 +248,9 @@ class Chatbot:
                 if self.input_count == 5:
                     response = self.giveRecommendations(affirmative, negative)
                 else: #if self.input_count < 5
-                    print(movieIdx)
                     if isinstance(movieIdx, list): # disambiguate (or something) returns movieIndx as a list; here we expect it to be one index
-                        print("here", movieIdx)
                         movieIdx = movieIdx[0]
                     if sentiment >= 1:
-                        print(movieIdx)
                         return "Ok, you liked \"" + self.titles[movieIdx][0] + "\"! Tell me what you thought of another movie."
                     elif sentiment <= -1:
                         return "Ok, you didn't like \"" + movieTitles[0] + "\"! Tell me what you thought of another movie."
@@ -317,7 +313,7 @@ class Chatbot:
                             i += 1
                             # print(recommendations)
                             # print(recommendations[i][0])
-                            answer = input('I think you\'ll enjoy watching \"' + self.titles[recommendations[i]][0] + '\"! Would you like another recommendations?\n').lower()
+                            answer = input('I think you\'ll enjoy watching \" ' + self.titles[recommendations[i]][0] + '\"! Would you like another recommendations?\n').lower()
                             if answer in negative:
                                 # response = "Have a nice day. Fullsend!"
                                 break
@@ -331,7 +327,6 @@ class Chatbot:
                                 response = "We have no more recommendations -- Have a nice day. Fullsend!"
                     else: #if self.input_count < 5
                         if sentiment == 1:
-                            print("HEREEE")
                             return "Ok, you liked \"" + self.titles[movieIdx][0] + "\"! Tell me what you thought of another movie."
                         elif sentiment == -1:
                             return "Ok, you didn't like \"" + self.titles[movieIdx][0] + "\"! Tell me what you thought of another movie."
@@ -358,7 +353,7 @@ class Chatbot:
             # print(recommendations)
             # print(recommendations[i])
             # print(recommendations[i][0])
-            answer = input('I think you\'ll enjoy watching\"' + self.titles[recommendations[i]][0] + '\"! Would you like another recommendations?\n').lower()
+            answer = input('I think you\'ll enjoy watching \"' + self.titles[recommendations[i]][0] + '\"! Would you like another recommendations?\n').lower()
             if answer in negative:
                 response = "Have a nice day. Fullsend!"
                 break
@@ -507,7 +502,7 @@ class Chatbot:
         # print(foreign_titles)
 
         if title in foreign_dict:
-            print(title)
+            # print(title)
             return self.titles[foreign_dict[title]]
         else:
             currWords = frozenset(self.tokenize(title))
