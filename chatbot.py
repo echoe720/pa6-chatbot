@@ -161,6 +161,7 @@ class Chatbot:
                                     return "Great, you liked \"" + str(answer) + "\"."
             
                                 movieIndices = self.disambiguate(answer, movieIdx)
+                                print("disam", movieIndices)
                                 if len(movieIndices) == 1: unclear = False
                                 #is break statement missing?
                        
@@ -221,6 +222,7 @@ class Chatbot:
             else: #if len(movieTitles) != 0 --> if there is one or more possible movies that the user was indicating (e.g. input: Harry Potter --> the 6 harry potter movies)
                 movieIndices = self.find_movies_by_title(movieTitles[0]) #why is this necessary again?
                 # print('movieIndices: ', movieIndices) #empty in cases of certain movies right now (if that matters-- it is maybe solved in disambiguate)
+                movieIdx = movieIndices[0] #initializing after disambiguation
 
                 # multiple movies, so we disambiguate
                 if len(movieIndices) >= 2:
@@ -237,7 +239,6 @@ class Chatbot:
                         movieIdx = self.disambiguate(answer, movieIndices)
                         if len(movieIdx) == 1: 
                             unclear = False
-                movieIdx = movieIndices[0] #initializing after disambiguation
                 sentiment = self.extract_sentiment_creative(line)
                 # print('Sentiment: ', sentiment)
 
@@ -248,9 +249,12 @@ class Chatbot:
                 if self.input_count == 5:
                     response = self.giveRecommendations(affirmative, negative)
                 else: #if self.input_count < 5
+                    print(movieIdx)
                     if isinstance(movieIdx, list): # disambiguate (or something) returns movieIndx as a list; here we expect it to be one index
+                        print("here", movieIdx)
                         movieIdx = movieIdx[0]
                     if sentiment >= 1:
+                        print(movieIdx)
                         return "Ok, you liked \"" + self.titles[movieIdx][0] + "\"! Tell me what you thought of another movie."
                     elif sentiment <= -1:
                         return "Ok, you didn't like \"" + movieTitles[0] + "\"! Tell me what you thought of another movie."
@@ -327,6 +331,7 @@ class Chatbot:
                                 response = "We have no more recommendations -- Have a nice day. Fullsend!"
                     else: #if self.input_count < 5
                         if sentiment == 1:
+                            print("HEREEE")
                             return "Ok, you liked \"" + self.titles[movieIdx][0] + "\"! Tell me what you thought of another movie."
                         elif sentiment == -1:
                             return "Ok, you didn't like \"" + self.titles[movieIdx][0] + "\"! Tell me what you thought of another movie."
