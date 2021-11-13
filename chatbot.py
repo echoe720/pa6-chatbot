@@ -471,6 +471,8 @@ class Chatbot:
             for index in index_list:
                 movie_title = ' '.join(split_words[index[0]:index[1] + 1])
                 result.append(movie_title)
+            if "hated" in result:
+                result.remove("hated")
             return result
 
     # assumptions: foreign titles don't have years, only aka and a.k.a. <== get these checked
