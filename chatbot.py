@@ -237,7 +237,7 @@ class Chatbot:
                         movieIdx = self.disambiguate(answer, movieIndices)
                         if len(movieIdx) == 1: 
                             unclear = False
-
+                movieIdx = movieIndices[0] #initializing after disambiguation
                 sentiment = self.extract_sentiment_creative(line)
                 # print('Sentiment: ', sentiment)
 
@@ -248,8 +248,10 @@ class Chatbot:
                 if self.input_count == 5:
                     response = self.giveRecommendations(affirmative, negative)
                 else: #if self.input_count < 5
+                    if isinstance(movieIdx, list): # disambiguate (or something) returns movieIndx as a list; here we expect it to be one index
+                        movieIdx = movieIdx[0]
                     if sentiment >= 1:
-                        return "Ok, you liked \"" + movieTitles[0] + "\"! Tell me what you thought of another movie."
+                        return "Ok, you liked \"" + self.titles[movieIdx][0] + "\"! Tell me what you thought of another movie."
                     elif sentiment <= -1:
                         return "Ok, you didn't like \"" + movieTitles[0] + "\"! Tell me what you thought of another movie."
                     else: 
@@ -277,7 +279,6 @@ class Chatbot:
                 response = "Please tell me about one movie at a time. What's one movie you have seen?"
                 return response
             else:
-                # print(movieTitle[0])
                 movieIndices = self.find_movies_by_title(movieTitle[0]) # added [0] here
                 if len(movieIndices) == 0:
                     return "Huh, I\'m not sure what movie you are talking about. What's a different movie that you have seen?"
@@ -285,7 +286,6 @@ class Chatbot:
                     return "I found more than one movie called " + movieTitle[0] + ". Which one were you trying to tell me about?"
                 else:
                     movieIdx = movieIndices[0]
-                    # print(self.titles[movieIdx][0])
                     
                     if self.user_ratings[movieIdx] == 0 and sentiment != 0: #if the user hasn't watched the movie already and the sentiment of the current movie is positive or negative:
                         self.input_count += 1
@@ -537,8 +537,14 @@ class Chatbot:
             for t in self.titles:
                 movie_titles.append((t[0].lower())) # now storing movie titles tokenized list, sorted so out of order matches
             title = str(title).lower()
-            titleYear.append(re.findall("(\([0-9]+\))", title))
-            title = re.sub( "(\([0-9]+\))", "", title) # filter out year from original title
+            if re.findall("(\([0-9]+\))", title) != []:
+                titleYear = re.findall("(\([0-9]+\))", title)
+                title = re.sub( "(\([0-9]+\))", "", title) # filter out year from original title
+            else:
+                titleYear = re.findall(r'\b\d{4}\b', title)
+                titleYear = ["(" + x + ")" for x in titleYear]
+                title = re.sub(r'\b\d{4}\b', "", title) # filter out year from original title
+                # print(title, titleYear)
             titleWords = self.tokenize(title)
 
             if titleWords[0] in ("the", "a", "an", "le", "el", "la"):
@@ -550,8 +556,9 @@ class Chatbot:
             for i in range(len(movie_titles)):
                 currTitle = movie_titles[i]
                 currYear = re.findall("(\([0-9]+\))", currTitle)
+                # print(currYear)
                 if len(titleWords) == 1 and list(titleWords)[0] in self.tokenize(currTitle):
-                    if titleYear[0] == [] or titleYear[0] == currYear[0]:
+                    if titleYear == [] or titleYear[0] == currYear[0]:
                         res.append(i)
                 elif len(titleWords) != 1 and title in currTitle:
                     res.append(i)
@@ -571,7 +578,6 @@ class Chatbot:
             # print(len(res))
             # if len(res) == 0:
             #     return self.find_foreign(title)
-            print(res)
             return res
         else:
             res = []
