@@ -422,6 +422,7 @@ class Chatbot:
             return re.findall('"([^"]*)"', preprocessed_input)
         else:
             movie_titles = []
+            emotion_keywords = ["hated", "happy"]
             quote = re.findall('"([^"]*)"', preprocessed_input)
             if quote != []:
                 foreign = self.find_foreign(quote)
@@ -454,9 +455,6 @@ class Chatbot:
             # eliminate overlapping indices (eliminate the shorter one)
             i = 1
             while i < len(index_list):
-                # print(index_list)
-                # print(index_list[i][0])
-                # print(index_list[i-1][1])
                 if index_list[i][0] <= index_list[i-1][1]: # there is overlap
                     len1 = index_list[i][1] - index_list[i][0] + 1
                     len2 = index_list[i-1][1] - index_list[i-1][0] + 1
@@ -471,8 +469,9 @@ class Chatbot:
             for index in index_list:
                 movie_title = ' '.join(split_words[index[0]:index[1] + 1])
                 result.append(movie_title)
-            if "hated" in result:
-                result.remove("hated")
+            for word in emotion_keywords:
+                if word in result:
+                    result.remove(word)
             return result
 
     # assumptions: foreign titles don't have years, only aka and a.k.a. <== get these checked
