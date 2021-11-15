@@ -871,10 +871,14 @@ class Chatbot:
 
             curr_dist = 0 #initializing
             
-            if ", the" in iter_name: #e.g. if input is "The Notbook", this check makes sure that the program recognizes it, instead of looking for an exact match of "Notebook, The (2004)"
+            if ", the" in iter_name or ", a" in iter_name: #e.g. if input is "The Notbook", this check makes sure that the program recognizes it, instead of looking for an exact match of "Notebook, The (2004)"
                 iter_name_alternate = iter_name #initializing
-                iter_name_alternate = iter_name_alternate.replace(", the", "")
-                iter_name_alternate = "the " + iter_name_alternate
+                if ", the" in iter_name:
+                    iter_name_alternate = iter_name_alternate.replace(", the", "")
+                    iter_name_alternate = "the " + iter_name_alternate
+                else:
+                    iter_name_alternate = iter_name_alternate.replace(", a", "")
+                    iter_name_alternate = "a " + iter_name_alternate
                 curr_dist = min(self.levenshtein(iter_name, title), self.levenshtein(iter_name_alternate, title))
             else:
                 curr_dist = self.levenshtein(iter_name, title)
@@ -1291,7 +1295,7 @@ class Chatbot:
         Consider adding to this description any information about what your
         chatbot can do and how the user can interact with it.
         """
-        return "Hi! This is a temporary intro string."
+        return "Hello, I'm ELON! Please enter 5 movies (one at a time) along with a description of whether you liked that movie or not, in order to get a movie recommendation. For instance, you should say along the lines of: 'I liked watching Into the Woods' or 'I hated watching Into the Woods'. "
         """
         Your task is to implement the chatbot as detailed in the PA6
         instructions.
