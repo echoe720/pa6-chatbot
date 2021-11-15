@@ -164,7 +164,8 @@ class Chatbot:
                                 if len(movieIndices) == 1: unclear = False
                                 #is break statement missing?
                        
-                        else:  # only one possible movie so we pick that one and ask if that was the right one
+                        else:  
+                            # only one possible movie so we pick that one and ask if that was the right one
                             answer = input("Did you mean " + self.titles[allPossibleMovies[0]][0] + "?")
                             movieIdx = allPossibleMovies[0]
                             if answer in negative:
@@ -865,7 +866,17 @@ class Chatbot:
         for i in range(len(self.titles)):
             iter_title = self.titles[i][0].lower()
             iter_name = re.sub("(\([0-9]+\))", "", iter_title).strip() # compare against stripped movie with no year
-            curr_dist = self.levenshtein(iter_name, title)
+
+            curr_dist = 0 #initializing
+            
+            if ", the" in iter_name: #e.g. if input is "The Notbook", this check makes sure that the program recognizes it, instead of looking for an exact match of "Notebook, The (2004)"
+                iter_name_alternate = iter_name #initializing
+                iter_name_alternate = iter_name_alternate.replace(", the", "")
+                iter_name_alternate = "the " + iter_name_alternate
+                curr_dist = min(self.levenshtein(iter_name, title), self.levenshtein(iter_name_alternate, title))
+            else:
+                curr_dist = self.levenshtein(iter_name, title)
+           
             if curr_dist <= edit_dist and curr_dist <= max_distance:
                 edit_dist = curr_dist
                 if curr_dist in title_dist_dict:
