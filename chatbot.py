@@ -423,7 +423,7 @@ class Chatbot:
             return re.findall('"([^"]*)"', preprocessed_input)
         else:
             movie_titles = []
-            emotion_keywords = ["hated", "happy"]
+            emotion_keywords = ["hated", "happy", "saw"]
             quote = re.findall('"([^"]*)"', preprocessed_input)
             if quote != []:
                 foreign = self.find_foreign(quote)
@@ -472,7 +472,10 @@ class Chatbot:
                 result.append(movie_title)
             for word in emotion_keywords:
                 if word in result:
-                    result.remove(word)
+                    split_input = preprocessed_input.split(" ")
+                    ind = split_input.index(word)
+                    if split_input[ind - 1] == "I":
+                        result.remove(word)
             return result
 
     # assumptions: foreign titles don't have years, only aka and a.k.a. <== get these checked
