@@ -123,8 +123,7 @@ class Chatbot:
         # self.creative = True
         if self.creative:
             movieTitles = self.extract_titles(self.preprocess(line)) #list of EXACT movie Titles matches    #should call find_movies_closest_to_title in here? Something to think about-- I think the answer is no for now. 
-            # print('movieTitles: ', movieTitles)
-            
+
             affirmative = ["yes", "sure", "ok", "yeah", "y", "affirmative", "i guess so", "fine", "always"]
             negative = ["no", "nah", "never", "negative", "n", "no thanks", "no, thanks", "nope"]
             movieIdx = 0
@@ -257,7 +256,7 @@ class Chatbot:
                             return "Ok, you didn't like \"" + movieTitles[0] + "\"! Tell me what you thought of another movie."
                         else: 
                             self.input_count -= 1
-                            return "I'm confused, did you like \"" + movieTitles[0] + "\"? Please try to clarify if you liked the movie."
+                            return "I'm confused, did you like \"" + movieTitles[0] + "\"? Please try to clarify if you liked the movie in the format of e.g. 'I liked watching MOVIETITLE.' "
                 else:
                     return "I wasn't able to find that movie. Please try again."
             response = self.goodbye()
@@ -270,23 +269,23 @@ class Chatbot:
             # It will ask the user to say something about movies they have liked, and it will come up with a recommendation based on those data points. 
             # The user of the chatbot in starter mode will follow its instructions, so you will deal with fairly restricted input. 
             # Movie names will come in quotation marks and expressions of sentiment will be simple.
-            movieTitle = self.extract_titles(self.preprocess(line))
+            movieTitles = self.extract_titles(self.preprocess(line))
             sentiment = self.extract_sentiment(line)
             # print(sentiment)
 
-            if len(movieTitle) == 0: # added this check for no movie, 
+            if len(movieTitles) == 0: # added this check for no movie, 
                 #what about the case where mentioned movie is not in the database??
                 response = "I'm not sure what movie you are talking about. Make sure you are puttting quotation marks around the movie name so that I can tell what movie you are talking about."
                 return response
-            elif len(movieTitle) >= 2: 
+            elif len(movieTitles) >= 2: 
                 response = "Please tell me about one movie at a time. What's one movie you have seen?"
                 return response
             else:
-                movieIndices = self.find_movies_by_title(movieTitle[0]) # added [0] here
+                movieIndices = self.find_movies_by_title(movieTitles[0]) # added [0] here
                 if len(movieIndices) == 0:
                     return "Huh, I\'m not sure what movie you are talking about. What's a different movie that you have seen?"
                 elif len(movieIndices) >= 2:
-                    return "I found more than one movie called " + movieTitle[0] + ". Which one were you trying to tell me about?"
+                    return "I found more than one movie called " + movieTitles[0] + ". Which one were you trying to tell me about?"
                 else:
                     movieIdx = movieIndices[0]
                     
@@ -335,7 +334,7 @@ class Chatbot:
                             return "Ok, you didn't like \"" + self.titles[movieIdx][0] + "\"! Tell me what you thought of another movie."
                         else: 
                             self.input_count -= 1
-                            return "I'm confused, did you like \"" + movieTitle[0] + "\"? Please try to clarify if you liked the movie."
+                            return "I'm confused, did you like \"" + movieTitles[0] + "\"? Please try to clarify if you liked the movie in the format of e.g. 'I liked watching MOVIETITLE.' "
             response = self.goodbye()
         return response
 
