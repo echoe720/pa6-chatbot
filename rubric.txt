@@ -60,4 +60,3 @@ they are interacting with a machine and not a human.
 # Optional: Feel free to include anything else that you want us to know about your      #
 # implementation!                                                                       #
 #########################################################################################
-We added and use in chatbot.py (extract_sentiment_creative function) two external txt files that contain extreme positive words and extreme negative words (deps/negative.txt, deps/positive.txt). The two files will be submitted as one deps folder.
