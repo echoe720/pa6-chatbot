@@ -425,11 +425,13 @@ class Chatbot:
             for index in index_list:
                 movie_title = ' '.join(split_words[index[0]:index[1] + 1])
                 result.append(movie_title)
+            preprocessed_quoteless = re.sub('\"', "", preprocessed_input).lower()
             for word in emotion_keywords:
+                word = word.lower()
                 if word in result:
-                    split_input = preprocessed_input.split(" ")
+                    split_input = preprocessed_quoteless.split(" ")
                     ind = split_input.index(word)
-                    if split_input[ind - 1] == "I":
+                    if split_input[ind - 1] == "i":
                         result.remove(word)
             return result
 
@@ -584,6 +586,8 @@ class Chatbot:
         pre-processed with preprocess()
         :returns: a numerical value for the sentiment of the text
         """
+        if self.creative:
+            return self.extract_sentiment_creative(self, preprocessed_input)
         pos_count = 0.0
         neg_count = 0.0
         lmd = 1.0
@@ -723,30 +727,22 @@ class Chatbot:
             return 0
         elif neg_count == 0:
             if pos_count == 1:
-                print('reached 1')
                 return 1
             else:
-                print('reached 2')
                 return 2
         elif pos_count == 0:
             if neg_count == 1:
-                print('reached -1')
                 return -1
             else:
-                print('reached -2')
                 return -2
         
         if pos_count / neg_count >= lmd * 2:
-            print('reached 2')
             return 2
         elif pos_count / neg_count > lmd:
-            print('reached 1')
             return 1
         elif pos_count / neg_count <= lmd / 2:
-            print('reached -2')
             return -2
         elif pos_count / neg_count < lmd:
-            print('reached -1')
             return -1
         return 0
 
