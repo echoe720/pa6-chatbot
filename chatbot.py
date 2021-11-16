@@ -718,8 +718,11 @@ class Chatbot:
                 distance_from_negation += 1
         if neg_count == 0.0 and pos_count == 0.0:
             return 0
-        elif neg_count ==0:
-            return 1
+        elif neg_count == 0:
+            if pos_count == 1:
+                return 1
+            else:
+                return 2
         if pos_count / neg_count >= lmd * 2:
             return 2
         elif pos_count / neg_count > lmd:
