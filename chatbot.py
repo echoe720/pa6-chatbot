@@ -669,8 +669,11 @@ class Chatbot:
         extreme_words = re.findall("(:?r+e+a+l+l+y+)|(:?e+x+t+r+e+m+e+l+y+)|(:?v+e+r+y+)", preprocessed_input) #it is okay to just find as many as possible manually, but what about "I don't really like??"
         preprocessed_input = self.tokenize(preprocessed_input)
 
-        extreme_negative_words = [word.replace("\n", "") for word in open('deps/negative.txt', 'r').readlines()] #https://github.com/shekhargulati/sentiment-analysis-python/tree/master/opinion-lexicon-English 
-        extreme_positive_words = [word.replace("\n", "") for word in open('deps/positive.txt', 'r').readlines()] #https://github.com/shekhargulati/sentiment-analysis-python/tree/master/opinion-lexicon-English
+        # extreme_negative_words = [word.replace("\n", "") for word in open('deps/negative.txt', 'r').readlines()] #https://github.com/shekhargulati/sentiment-analysis-python/tree/master/opinion-lexicon-English 
+        # extreme_positive_words = [word.replace("\n", "") for word in open('deps/positive.txt', 'r').readlines()] #https://github.com/shekhargulati/sentiment-analysis-python/tree/master/opinion-lexicon-English
+        extreme_positive_words = ['love', 'loved', 'amazing', 'incredible', 'awesome', 'perfect', 'marvelous', 'magical', 'masterful', 'masterpiece', 'outstanding', 'phenomenal', 'pinnacle']
+        extreme_negative_words = ['hate', 'hated', 'atrocious', 'never', 'abysmal', 'horrendous', 'terrible', 'blasphemous']
+
         
         for item in preprocessed_input:
             if item in extreme_words:
@@ -723,6 +726,11 @@ class Chatbot:
                 return 1
             else:
                 return 2
+        elif pos_count == 0:
+            if neg_count == 1:
+                return -1
+            else:
+                return -2
         if pos_count / neg_count >= lmd * 2:
             return 2
         elif pos_count / neg_count > lmd:
