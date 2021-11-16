@@ -666,18 +666,16 @@ class Chatbot:
         preprocessed_input = preprocessed_input.lower()
         preprocessed_input = preprocessed_input.replace(currTitles[0], "")
 
-        extreme_words = re.findall("(:?r+e+a+l+l+y+)|(:?e+x+t+r+e+m+e+l+y+)|(:?v+e+r+y+)", preprocessed_input) #it is okay to just find as many as possible manually, but what about "I don't really like??"
-        preprocessed_input = self.tokenize(preprocessed_input)
+        extreme_words = re.findall(r'(:?r+e+a+l+l+y+|:?v+e+r+y+|:?e+x+t+r+e+m+e+l+y+)', preprocessed_input)
 
-        # extreme_negative_words = [word.replace("\n", "") for word in open('deps/negative.txt', 'r').readlines()] #https://github.com/shekhargulati/sentiment-analysis-python/tree/master/opinion-lexicon-English 
-        # extreme_positive_words = [word.replace("\n", "") for word in open('deps/positive.txt', 'r').readlines()] #https://github.com/shekhargulati/sentiment-analysis-python/tree/master/opinion-lexicon-English
+        preprocessed_input = self.tokenize(preprocessed_input)
+        
         extreme_positive_words = ['love', 'loved', 'amazing', 'incredible', 'awesome', 'perfect', 'marvelous', 'magical', 'masterful', 'masterpiece', 'outstanding', 'phenomenal', 'pinnacle']
         extreme_negative_words = ['hate', 'hated', 'atrocious', 'never', 'abysmal', 'horrendous', 'terrible', 'blasphemous']
 
-        
         for item in preprocessed_input:
             if item in extreme_words:
-                extreme_flag = True         
+                extreme_flag = True
             if distance_from_negation == max_negation_distance:
                 distance_from_negation = 0
                 negated_flag = False
@@ -717,27 +715,38 @@ class Chatbot:
                     if extreme_flag or isExtremeNeg: #e.g. verrry bad / HORRIBLE
                         neg_count += 1.0
                         extreme_flag = False
+
             if negated_flag:
                 distance_from_negation += 1
+
         if neg_count == 0.0 and pos_count == 0.0:
             return 0
         elif neg_count == 0:
             if pos_count == 1:
+                print('reached 1')
                 return 1
             else:
+                print('reached 2')
                 return 2
         elif pos_count == 0:
             if neg_count == 1:
+                print('reached -1')
                 return -1
             else:
+                print('reached -2')
                 return -2
+        
         if pos_count / neg_count >= lmd * 2:
+            print('reached 2')
             return 2
         elif pos_count / neg_count > lmd:
+            print('reached 1')
             return 1
         elif pos_count / neg_count <= lmd / 2:
+            print('reached -2')
             return -2
         elif pos_count / neg_count < lmd:
+            print('reached -1')
             return -1
         return 0
 
