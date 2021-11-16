@@ -669,8 +669,8 @@ class Chatbot:
         extreme_words = re.findall("(:?r+e+a+l+l+y+)|(:?e+x+t+r+e+m+e+l+y+)|(:?v+e+r+y+)", preprocessed_input) #it is okay to just find as many as possible manually, but what about "I don't really like??"
         preprocessed_input = self.tokenize(preprocessed_input)
 
-        extreme_negative_words = open('data/negative.txt', 'r').readlines() #https://github.com/shekhargulati/sentiment-analysis-python/tree/master/opinion-lexicon-English 
-        extreme_positive_words = open('data/positive.txt', 'r').readlines() #https://github.com/shekhargulati/sentiment-analysis-python/tree/master/opinion-lexicon-English
+        extreme_negative_words = [word.replace("\n", "") for word in open('deps/negative.txt', 'r').readlines()] #https://github.com/shekhargulati/sentiment-analysis-python/tree/master/opinion-lexicon-English 
+        extreme_positive_words = [word.replace("\n", "") for word in open('deps/positive.txt', 'r').readlines()] #https://github.com/shekhargulati/sentiment-analysis-python/tree/master/opinion-lexicon-English
         
         for item in preprocessed_input:
             if item in extreme_words:
