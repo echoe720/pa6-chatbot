@@ -60,3 +60,4 @@ they are interacting with a machine and not a human.
 # Optional: Feel free to include anything else that you want us to know about your      #
 # implementation!                                                                       #
 #########################################################################################
+When tested manually, our Extract Sentiment (Creative) test cases as exactly provided in the rubric all pass (outputs 2, -2, 2 respectively), yet they do not seem to pass the 3b gradescope test (which we thought are the very test cases in the rubric). Would you mind looking into this? Thank you!
